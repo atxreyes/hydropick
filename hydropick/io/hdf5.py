@@ -31,7 +31,7 @@ class HDF5Backend(object):
 
         self._write_freq_dicts(line_name, data['frequencies'])
         self._write_raw_sdi_dict(line_name, data_raw)
-        
+
         # THIS IS MOVED BACK TO SURVEYLINE LOAD UNTIL TRACE_NUM
         # ERRORS FIXED IN SDI BINARY SO THAT BAD TRACE NUM
         # ARRAYS CAN BE FIXED

@@ -75,6 +75,7 @@ def read_pick_lines_from_hdf(h5file, line_name, line_type):
         for name, pick_line in pick_lines.iteritems()
     ])
 
+
 def write_depth_line_to_hdf(h5file, depth_line, survey_line_name):
     d = depth_line
     data = dict(
@@ -97,6 +98,7 @@ def write_depth_line_to_hdf(h5file, depth_line, survey_line_name):
         line_type = 'preimpoundment'
     hdf5.HDF5Backend(h5file).write_pick(data, survey_line_name, line_type)
 
+
 def check_trace_num_array(trace_num_array, survey_line_name):
     ''' checks for bad points in trace_num array.
     assumes trace num array should be a sequential array, 1 to len(array)
@@ -114,8 +116,9 @@ def check_trace_num_array(trace_num_array, survey_line_name):
         values of {} at traces {}
         '''.format('name', bad_values, bad_indices + 1)
         logger.warn(s)
-    
+
     return bad_indices, bad_values
+
 
 def fix_trace_num_arrays(trace_num_array, bad_indices, freq_trace_num):
     ''' Replaces bad trace num values with the appropriate sequential value,
@@ -133,11 +136,5 @@ def fix_trace_num_arrays(trace_num_array, bad_indices, freq_trace_num):
             # set the value to correct trace number which is the index + 1
             trace_array[i_in_freq] = index + 1
     trace_num_array = np.arange(1, len(trace_num_array) + 1)
-    
+
     return trace_num_array, freq_trace_num
-        
-            
-        
-    
-    
-    
