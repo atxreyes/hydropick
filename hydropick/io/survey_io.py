@@ -75,14 +75,16 @@ def read_pick_lines_from_hdf(h5file, line_name, line_type):
         for name, pick_line in pick_lines.iteritems()
     ])
 
-def read_one_pick_line_from_hdf(pic_name, pick_lines=None, h5file=None,
+
+def read_one_pick_line_from_hdf(pic_name, pick_lines=None, project_dir=None,
                                 line_name=None, line_type=None):
     if pick_lines is None:
-        pick_lines = hdf5.HDF5Backend(h5file).read_picks(line_name,
-                                                         line_type)
+        backend = hdf5.HDF5Backend(project_dir)
+        pick_lines = backend.read_picks(line_name, line_type)
     pick_line = pick_lines[pic_name]
     depth_line = DepthLine(**pick_line)
     return depth_line
+
 
 def write_depth_line_to_hdf(h5file, depth_line, survey_line_name):
     d = depth_line
