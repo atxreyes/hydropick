@@ -106,7 +106,7 @@ def import_sdi(directory, h5file):
         files_bin = [f for f in files if os.path.splitext(f)[1] == '.bin']
         N_files = len(files_bin)
         print '\nchecking project folder: "{}"\n with {} sub-directories'\
-               .format(currentd, N_dir)
+            .format(currentd, N_dir)
         print 'loading {} .bin files'.format(N_files)
         i = 0
         for filename in files_bin:

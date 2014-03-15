@@ -75,6 +75,7 @@ def read_pick_lines_from_hdf(h5file, line_name, line_type):
         for name, pick_line in pick_lines.iteritems()
     ])
 
+
 def write_depth_line_to_hdf(h5file, depth_line, survey_line_name):
     d = depth_line
     data = dict(
