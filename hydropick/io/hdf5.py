@@ -5,6 +5,7 @@ import warnings
 
 import fiona
 import numpy as np
+import lockfile
 import sdi
 from shapely.geometry import MultiLineString, shape, mapping
 import tables
@@ -308,6 +309,16 @@ class HDF5Backend(object):
         if not os.path.exists(dirname):
             os.makedirs(dirname)
 
+        if 'a' in mode or 'w' in mode:
+            with lockfile.LockFile(filepath + '-lock'):
+                with self._open_file_helper(filepath, mode) as f:
+                    yield f
+        else:
+            with self._open_file_helper(filepath, mode) as f:
+                yield f
+
+    @contextlib.contextmanager
+    def _open_file_helper(self, filepath, mode):
         with tables.openFile(filepath, mode) as f:
             if len(f.listNodes('/')) == 0:
                 f.root._v_attrs.version = self.hydropick_format_version

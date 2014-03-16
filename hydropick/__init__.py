@@ -27,6 +27,7 @@ _non_ambiguous_requirements = [
     "enable>4.2",
     "chaco>=4.4",
     "fiona>=1.0.2",
+    "lockfile>=0.9.1",
     "scimath>=4.1.2",
     "shapely>=1.2.17",
     "sdi",
