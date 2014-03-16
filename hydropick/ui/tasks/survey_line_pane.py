@@ -106,7 +106,7 @@ class SurveyLinePane(TraitsTaskPane):
                 # create new datasession object and entry for this surveyline.
                 if self.survey_line.trace_num.size == 0:
                     # need to load data for this line
-                    self.survey_line.load_data(self.survey.hdf5_file)
+                    self.survey_line.load_data(self.survey.project_dir)
                 data_session = SurveyDataSession(survey_line=self.survey_line,
                                                  algorithms=self.algorithms)
                 self.data_session_dict[self.line_name] = data_session
@@ -126,4 +126,4 @@ class SurveyLinePane(TraitsTaskPane):
     view = View(
         Item('survey_line_view', style='custom', show_label=False,
              visible_when='show_view')
-        )
+    )

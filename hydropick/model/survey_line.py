@@ -111,15 +111,15 @@ class SurveyLine(HasTraits):
                 masked = True
         return masked
 
-    def load_data(self, hdf5_file):
+    def load_data(self, project_dir):
         ''' Called by UI to load this survey line when selected to edit
         '''
         from ..io import survey_io
 
         # read frequency dict from hdf5 file.
-        sdi_dict_raw = survey_io.read_sdi_data_unseparated_from_hdf(hdf5_file,
+        sdi_dict_raw = survey_io.read_sdi_data_unseparated_from_hdf(project_dir,
                                                                     self.name)
-        freq_dict_list = survey_io.read_frequency_data_from_hdf(hdf5_file,
+        freq_dict_list = survey_io.read_frequency_data_from_hdf(project_dir,
                                                                 self.name)
 
         # fill frequncies and freq_trace_num dictionaries with freqs as keys.
@@ -154,12 +154,12 @@ class SurveyLine(HasTraits):
             depth_array=sdi_dict_raw['depth_r1'],
             lock = True
         )
-        survey_io.write_depth_line_to_hdf(hdf5_file, sdi_surface, self.name)
+        survey_io.write_depth_line_to_hdf(project_dir, sdi_surface, self.name)
         # depth lines stored separately
         self.lake_depths = survey_io.read_pick_lines_from_hdf(
-                                     hdf5_file, self.name, 'current')
+                                     project_dir, self.name, 'current')
         self.preimpoundment_depths = survey_io.read_pick_lines_from_hdf(
-                                     hdf5_file, self.name, 'preimpoundment')
+                                     project_dir, self.name, 'preimpoundment')
 
     def nearby_core_samples(self, core_samples, dist_tol=100):
         """ Find core samples from a list of CoreSample instances
