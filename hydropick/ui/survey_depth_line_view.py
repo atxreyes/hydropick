@@ -61,8 +61,8 @@ class DepthLineView(HasStrictTraits):
     # name of depth_line to view chosen from pulldown of all available lines.
     selected_depth_line_name = Str
 
-    # name of hdf5_file for this survey in case we need to load survey lines
-    hdf5_file = Str
+    # name of project directory for this survey in case we need to load survey lines
+    project_dir = Str
 
     # current depth line object
     model = Instance(DepthLine)
@@ -383,7 +383,7 @@ class DepthLineView(HasStrictTraits):
             for line in self.selected_survey_lines:
                 if line.trace_num.size == 0:
                     # need to load line
-                    line.load_data(self.hdf5_file)
+                    line.load_data(self.project_dir)
                 # create new deep copy of model object for each survey line
                 self.model = deepcopy(model)
                 self.model.survey_line_name = line.name
@@ -409,6 +409,7 @@ class DepthLineView(HasStrictTraits):
             # there was a problem.  User should correct based on messages
             # and retry.  Reset no problem flag so user can continue.
             self.no_problem = True
+
         self.model = model
 
     @on_trait_change('selected_depth_line_name')

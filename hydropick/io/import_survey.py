@@ -46,18 +46,18 @@ def get_number_of_bin_files(path):
     return len(file_names)
 
 
-def import_cores(directory, h5file):
+def import_cores(directory, project_dir):
     from ..model.core_sample import CoreSample
 
     try:
-        core_dicts = survey_io.read_core_samples_from_hdf(h5file)
+        core_dicts = survey_io.read_core_samples_from_hdf(project_dir)
     except (IOError, tables.exceptions.NoSuchNodeError):
         for filename in os.listdir(directory):
             if os.path.splitext(filename)[1] == '.txt':
                 corestick_file = os.path.join(directory, filename)
-                survey_io.import_core_samples_from_file(corestick_file, h5file)
+                survey_io.import_core_samples_from_file(corestick_file, project_dir)
 
-        core_dicts = survey_io.read_core_samples_from_hdf(h5file)
+        core_dicts = survey_io.read_core_samples_from_hdf(project_dir)
 
     # this is a corestick file
     return [
@@ -70,28 +70,28 @@ def import_cores(directory, h5file):
     ]
 
 
-def import_pick_files(directory, h5file):
+def import_pick_files(directory, project_dir):
     # find the GIS file in the directory
     for path in glob.glob(directory + '/*/*/*[pic,pre]'):
-        survey_io.import_pick_line_from_file(path, h5file)
+        survey_io.import_pick_line_from_file(path, project_dir)
 
 
-def import_lake(name, directory, h5file):
+def import_lake(name, directory, project_dir):
     try:
-        shoreline = survey_io.read_shoreline_from_hdf(h5file)
+        shoreline = survey_io.read_shoreline_from_hdf(project_dir)
     except (IOError, tables.exceptions.NoSuchNodeError):
         # find the GIS file in the directory
         for filename in os.listdir(directory):
             if os.path.splitext(filename)[1] == '.shp':
                 shp_file = os.path.join(directory, filename)
-                survey_io.import_shoreline_from_file(name, shp_file, h5file)
+                survey_io.import_shoreline_from_file(name, shp_file, project_dir)
                 print 'imported shp file:', filename
                 break
-        shoreline = survey_io.read_shoreline_from_hdf(h5file)
+        shoreline = survey_io.read_shoreline_from_hdf(project_dir)
     return shoreline
 
 
-def import_sdi(directory, h5file):
+def import_sdi(directory, project_dir):
     from hydropick.model.survey_line_group import SurveyLineGroup
     survey_lines = []
     survey_line_groups = []
@@ -118,14 +118,14 @@ def import_sdi(directory, h5file):
             print '{}  ({}/{} in folder : {}/{} total)'\
                   .format(linename, i, N_files, i_total, N_bin_total)
             try:
-                line = read_survey_line_from_hdf(h5file, linename)
+                line = read_survey_line_from_hdf(project_dir, linename)
             except (IOError, tables.exceptions.NoSuchNodeError):
                 logger.info("Importing sdi file '%s'", filename)
                 try:
                     import_survey_line_from_file(os.path.join(root,
                                                               filename),
-                                                 h5file, linename)
-                    line = read_survey_line_from_hdf(h5file, linename)
+                                                 project_dir, linename)
+                    line = read_survey_line_from_hdf(project_dir, linename)
                 except Exception as e:
                     # XXX: blind except to read all the lines that we
                     # can for now
@@ -136,7 +136,7 @@ def import_sdi(directory, h5file):
                     line = None
             if line:
                 group_lines.append(line)
-                
+
         if group_lines:
             dirname = os.path.basename(root)
             group = SurveyLineGroup(name=dirname, survey_lines=group_lines)
@@ -151,23 +151,23 @@ def import_survey(directory, with_pick_files=False):
 
     name = get_name(directory)
 
-    # HDF5 datastore file for survey
-    hdf5_file = os.path.join(directory, name + '.h5')
-    print hdf5_file
+    # project directory for survey
+    project_dir = os.path.join(directory, name + '-project')
+    print project_dir
 
     # read in core samples
-    core_samples = import_cores(os.path.join(directory, 'Coring'), hdf5_file)
+    core_samples = import_cores(os.path.join(directory, 'Coring'), project_dir)
 
     # read in lake
-    lake = import_lake(name, os.path.join(directory, 'ForSurvey'), hdf5_file)
+    lake = import_lake(name, os.path.join(directory, 'ForSurvey'), project_dir)
 
     # read in sdi data
-    l, g, b, a =  import_sdi(os.path.join(directory, 'SDI_Data'), hdf5_file)
+    l, g, b, a = import_sdi(os.path.join(directory, 'SDI_Data'), project_dir)
     survey_lines, survey_line_groups, bad_lines, approved_lines = l, g, b, a
 
     # read in edits to sdi data
     if with_pick_files:
-        import_pick_files(os.path.join(directory, 'SDI_Edits'), hdf5_file)
+        import_pick_files(os.path.join(directory, 'SDI_Edits'), project_dir)
 
     survey = Survey(
         name=name,
@@ -175,7 +175,7 @@ def import_survey(directory, with_pick_files=False):
         survey_lines=survey_lines,
         survey_line_groups=survey_line_groups,
         core_samples=core_samples,
-        hdf5_file=hdf5_file,
+        project_dir=project_dir,
     )
 
     return survey
