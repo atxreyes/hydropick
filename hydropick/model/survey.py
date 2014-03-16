@@ -9,7 +9,7 @@ from __future__ import absolute_import
 
 import logging
 
-from traits.api import File, HasTraits, List, Str, Supports, provides, Event
+from traits.api import Directory, Event, HasTraits, List, Str, Supports, provides
 
 from .i_survey import ISurvey
 from .i_lake import ILake
@@ -49,8 +49,8 @@ class Survey(HasTraits):
     #: used to signal change in core samples list
     core_samples_updated = Event
 
-    #: backend hdf5 file
-    hdf5_file = File
+    #: backend project directory
+    project_dir = Directory
 
     def add_survey_line_group(self, group):
         """ Create a new line group, optionally with a set of lines """

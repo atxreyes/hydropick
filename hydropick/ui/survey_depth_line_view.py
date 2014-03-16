@@ -63,9 +63,6 @@ class DepthLineView(HasStrictTraits):
     # name of current line in editor: convenience for display
     survey_line_name = Property(depends_on=['data_session'])
 
-    # name of hdf5_file for this survey in case we need to load survey lines
-    hdf5_file = Str
-
     # list of available depth lines extracted from survey line for choices
     depth_lines = Property(depends_on=['data_session',
                                        'data_session.depth_lines_updated'])
@@ -73,6 +70,9 @@ class DepthLineView(HasStrictTraits):
 
     # name of depth_line to view chosen from pulldown of line choices.
     selected_depth_line_name = Str
+
+    # name of project directory for this survey in case we need to load survey lines
+    project_dir = Str
 
     # current depth line object
     model = Instance(DepthLine)
@@ -410,7 +410,7 @@ class DepthLineView(HasStrictTraits):
             for line in good_lines:
                 if line.trace_num.size == 0:
                     # need to load line
-                    line.load_data(self.hdf5_file)
+                    line.load_data(self.project_dir)
                 if line.status == 'approved' and not overwrite_approved:
                     self.log_problem('line {} already approved and overwrite'
                                      .format(line.name) + 'not selected' +
