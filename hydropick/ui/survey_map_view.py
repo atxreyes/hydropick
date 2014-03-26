@@ -8,6 +8,7 @@
 from __future__ import absolute_import
 
 # 3rd party imports
+import logging
 import numpy as np
 from shapely.geometry import Point
 
@@ -16,7 +17,8 @@ from chaco.api import (ArrayPlotData, ArrayDataSource, LinearMapper,
                        Plot, PolygonPlot, ScatterPlot, TextBoxOverlay)
 from chaco.tools.api import PanTool, ZoomTool
 from enable.api import BaseTool, ColorTrait
-from traits.api import Bool, Dict, Float, Instance, List, on_trait_change, Property
+from traits.api import (Bool, Dict, Float, Instance, List, on_trait_change,
+                        Str, Property)
 from traitsui.api import ModelView
 from pyface.tasks.api import TraitsDockPane
 
@@ -24,6 +26,8 @@ from pyface.tasks.api import TraitsDockPane
 from hydropick.model.i_survey import ISurvey
 from hydropick.model.i_survey_line import ISurveyLine
 from hydropick.ui.line_select_tool import LineSelectTool
+
+logger = logging.getLogger(__name__)
 
 # Constants for easy custumization of map view
 # Colors are strings like 'blue' for string tuples like '(0, 0 ,255)'
@@ -275,9 +279,11 @@ class SurveyMapView(ModelView):
         self.line_select_tool.on_trait_event(self.select_point, 'select_point')
         # double click in map sets 'current point': change current survey line
         self.line_select_tool.on_trait_event(self.current_point, 'current_point')
+        # rt click in map sets 'id point': change line name in text box
+        self.line_select_tool.on_trait_event(self.id_point, 'id_point')
         plot.tools.append(self.line_select_tool)
         line_name_text = TextBoxOverlay(component=plot,
-                                        text=self.get_current_line_name(),
+                                        text='No line rt clicked', #self.get_current_line_name(),
                                         text_color=TEXTBOX_COLOR,
                                         align=TEXTBOX_POSITION,
                                         bgcolor=TEXTBOX_BG_COLOR
@@ -294,6 +300,21 @@ class SurveyMapView(ModelView):
             if line.navigation_line.distance(p) < self.tol:
                 self._select_line(line)
 
+    def id_point(self, event):
+        ''' single rt click displays line id in text on map
+        '''
+        p = Point(event)
+        text = None
+        for line in self.survey_lines:
+            if line.navigation_line.distance(p) < self.tol:
+                text = line.name
+                break
+        if text is None:
+            text = 'No line rt clicked'
+        self.text_overlay.text = text
+        self.text_overlay.invalidate_and_redraw()
+
+
     def current_point(self, event):
         ''' double click in map sets line as current survey line (for editing)
         '''
@@ -305,17 +326,8 @@ class SurveyMapView(ModelView):
                 break
 
     def _select_line(self, line):
-        print 'select', line.name
-        self.text_overlay.text = line.name
-        self.text_overlay.invalidate_and_redraw()
+        logger.info('selected line {} in map view'.format(line.name))
         if line in self.selected_survey_lines:
             self.selected_survey_lines.remove(line)
         else:
             self.selected_survey_lines.append(line)
-
-    def get_current_line_name(self):
-        if self.current_survey_line:
-            name = self.current_survey_line.name
-        else:
-            name = 'No line clicked'
-        return name

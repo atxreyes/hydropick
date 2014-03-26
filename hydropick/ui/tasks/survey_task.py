@@ -228,7 +228,7 @@ class SurveyTask(Task):
                                   enabled_name='show_view'),
                 self.zoom_box_action,
                 CentralPaneAction(name='Zoom Box Once (press "z")',
-                                  enabled_name='False'),
+                                  enabled_name=''),
                 id='Survey', name="Survey", show_tool_names=False,
                 image_size=(24, 24)
             ),
