@@ -65,11 +65,15 @@ class SurveyLinePane(TraitsTaskPane):
         self.survey_line_view.zoom_extent()
 
     def on_zoom_box(self):
-        ''' currently not enabled from toolbar - use z key'''
+        ''' enables always on for the zoom box and disables edit'''
         action = self.task.zoom_box_action
-        logger.info("zoom_box_icon not enabled: press 'z', {},{}"
-                    .format(action, action.checked))
         self.survey_line_view.zoom_box_toggle(action)
+
+    def on_move_legend(self):
+        ''' currently not enabled from toolbar - use z key'''
+        action = self.task.move_legend_action
+        logger.info("pan disabled to move legend with right mouse")
+        self.survey_line_view.move_legend(action)
 
     def on_image_adjustment(self):
         ''' Open dialog to adjust image (B&C : task menu)'''

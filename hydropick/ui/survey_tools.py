@@ -11,7 +11,7 @@ import numpy as np
 from enable.api import BaseTool, KeySpec
 from traits.api import (Float, Enum, CInt, Bool, Instance, Str, List, Set,
                         Property, Event, Any, Tuple)
-from chaco.api import LinePlot, PlotComponent
+from chaco.api import PlotComponent
 
 #==============================================================================
 # Custom Tools
@@ -47,6 +47,7 @@ class DepthTool(BaseTool):
         newx, newy = self.component.map_data((event.x, event.y))
         depth = np.clip(newy, *self.ybounds)
         self.depth = depth
+
 
 class InspectorFreezeTool(BaseTool):
     ''' Provides key for "freezing" line inspector tool so that cursor
@@ -113,6 +114,8 @@ class TraceTool(BaseTool):
     # editing starts.  this could possibly be done with mouse down instead.
     mouse_down = Bool(False)
 
+    drag_button = Enum("left", "right")
+
     # line being edited
     target_line = Instance(PlotComponent)
 
@@ -133,11 +136,9 @@ class TraceTool(BaseTool):
 
     # ybounds for this tool limits the data values to set
     ybounds = Tuple
-    
-    
+
     ##### private trait  ####
     _mask_value = Float(0)
-
 
     def _target_line_changed(self):
         self.data_changed = False
@@ -147,10 +148,19 @@ class TraceTool(BaseTool):
 
     def normal_right_down(self, event):
         ''' start editing '''
-        if self.edit_allowed:
-            self.event_state = 'edit'
-        else:
-            self.event_state = 'normal'
+        if self.drag_button == "right":
+            if self.edit_allowed:
+                self.event_state = 'edit'
+            else:
+                self.event_state = 'normal'
+
+    def normal_left_down(self, event):
+        ''' start editing '''
+        if self.drag_button == "left":
+            if self.edit_allowed:
+                self.event_state = 'edit'
+            else:
+                self.event_state = 'normal'
 
     def normal_mouse_enter(self, event):
         if not self.window:
@@ -161,8 +171,15 @@ class TraceTool(BaseTool):
 
     def edit_right_up(self, event):
         ''' finish editing'''
-        self.event_state = 'normal'
-        self.mouse_down = False
+        if self.drag_button == "right":
+            self.event_state = 'normal'
+            self.mouse_down = False
+
+    def edit_left_up(self, event):
+        ''' finish editing'''
+        if self.drag_button == "left":
+            self.event_state = 'normal'
+            self.mouse_down = False
 
     def edit_key_pressed(self, event):
         ''' this event fires the toggle event so that an outside listener

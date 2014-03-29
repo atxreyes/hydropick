@@ -84,13 +84,28 @@ class SurveyTask(Task):
     # refernce to this action so that the checked trait can be easily monitored
     zoom_box_action = Instance(CentralPaneAction)
 
+    # refernce to this action so that the checked trait can be easily monitored
+    move_legend_action = Instance(CentralPaneAction)
+
     ###########################################################################
     # 'Task' interface.
     ###########################################################################
     def _zoom_box_action_default(self):
+        ''' need to make this a trait to have access to action.checked state
+        '''
         action = CentralPaneAction(name='Zoom Box (press "z")',
                                    method='on_zoom_box',
                                    image=ImageResource("magnifier-zoom-fit"),
+                                   style='toggle',
+                                   enabled_name='show_view')
+        return action
+
+    def _move_legend_action_default(self):
+        ''' need to make this a trait to have access to action.checked state
+        '''
+        action = CentralPaneAction(name='disable pan',
+                                   method='on_move_legend',
+                                   image=ImageResource("application-export"),
                                    style='toggle',
                                    enabled_name='show_view')
         return action
@@ -222,6 +237,7 @@ class SurveyTask(Task):
                            method='on_next_line',
                            enabled_name='survey.survey_lines',
                            image=ImageResource("arrow-right")),
+                self.move_legend_action,
                 CentralPaneAction(name='Zoom Extent',
                                   method='on_zoom_extent',
                                   image=ImageResource("zone-resize"),

@@ -119,6 +119,9 @@ class PlotContainer(HasTraits):
     # legends for each hplot:main.  Used to set visibility
     legend_dict = Dict
 
+    # need to toggle pantool
+    pan_tool_dict = Dict
+
     # shared dict of line_plot objects, mostly for when edit target changes
     plot_dict = Dict(Str, PlotComponent)
 
@@ -382,8 +385,8 @@ class PlotContainer(HasTraits):
 
         else:
             # add zoom tools
-            main.tools.append(PanTool(main))
-            zoom = ZoomTool(main, tool_mode='box', axis='both', alpha=0.5)
+            zoom = ZoomTool(main, tool_mode='box', axis='both', alpha=0.5,
+                            drag_button="left")
             main.tools.append(zoom)
             main.overlays.append(zoom)
             self.zoom_tools[key] = zoom
@@ -417,12 +420,16 @@ class PlotContainer(HasTraits):
             legend_highlighter = LegendHighlighter(legend,
                                                    drag_button="right")
             legend.tools.append(legend_highlighter)
-
+            self.legend_dict[key] = [legend, legend_highlighter]
             self.update_legend_plots(legend, main)
             legend.visible = False
-            self.legend_dict[key] = [legend, legend_highlighter]
             main.overlays.append(legend)
             legend_highlighter.on_trait_change(self.legend_moved, '_drag_state')
+
+            # add pan tool
+            pan_tool = PanTool(main, drag_button="right")
+            main.tools.append(pan_tool)
+            self.pan_tool_dict[key] = pan_tool
 
             # add main and slice plot to hplot container and dict
             #****************************************************
@@ -443,6 +450,24 @@ class PlotContainer(HasTraits):
         legend.plots = {}
         for k in self.model.depth_dict:
             legend.plots[k] = plot.plots[k]
+
+    def disable_pan(self, action):
+        ''' adds or removes pan from main plots depending on toolbar icon
+        state
+        '''
+        logger.debug('pan disable action is {}'.format(action.checked))
+        mains = [(key, h.components[0]) for key, h in self.hplot_dict.items()
+                 if key != 'mini']
+        for key, main in mains:
+            pantool = self.pan_tool_dict[key]
+            if action.checked:
+                # remove pan
+                if pantool in main.tools:
+                    main.tools.remove(pantool)
+            else:
+                if pantool not in main.tools:
+                    main.tools.append(pantool)
+
 
     def update_all_line_plots(self, update=False):
         ''' reload all line plots when added or changed.
@@ -497,7 +522,7 @@ class PlotContainer(HasTraits):
         line plots.  When depth_dict is updated, check all keys to see all
         lines are plotted.  Update=True will replot all lines even if already
         there (for style changes)'''
-        lineplots = [item for item in  plot.plots.items() if 
+        lineplots = [item for item in  plot.plots.items() if
                      (item[0].startswith('PRE') or item[0].startswith('POST'))]
         for line_key, line_plot in lineplots:
             line_plot_deleted = line_key not in self.model.depth_dict.keys()
@@ -765,16 +790,22 @@ class ControlView(HasTraits):
     edit = Enum('Editing', 'Not Editing', 'Mark Bad Data')
 
     # records current sub-mode of Mark Bad Data edit mode.  Toggle with buttons
+    # this can also be toggled by tool with t key. watched by main pane to
+    # change tool.
     mark_bad_data_mode = Enum('off', 'Mark', 'Unmark')
 
     # button event to toggle state editing state of Bad Data Edit
     bad_data_mode_toggle = Event
 
+    # provide to disable editing if zoom icon is enabled
+    zoom_checked = Bool(False)
+
     traits_view = View(
         VGroup(
             HGroup(
                 UItem('edit',
-                      tooltip='select editing depthline, or editing bad '
+                      tooltip='select editing depthline, or editing bad ',
+                      enabled_when='not zoom_checked'
                 ),
                 Item('object.model.selected_target',
                      editor=EnumEditor(name='target_choices'),
@@ -799,11 +830,15 @@ class ControlView(HasTraits):
                 Item('object.model.final_lake_depth',
                      editor=EnumEditor(name='object.model.lake_depth_choices')),
                 Item('object.model.final_preimpoundment_depth',
-                     editor=EnumEditor(name='object.model.preimpoundment_depth_choices'))
+                     editor=EnumEditor(name='object.model.preimpoundment_depth_choices')
+                    )
             )
         ),
         resizable=True
     )
+
+    def _anytrait_changed(self, name, old, new):
+        logger.debug('CONTROL_VIEW_trait changed: {}'.format((name, old, new)))
 
     def _edit_default(self):
         return 'Not Editing'
@@ -823,7 +858,6 @@ class ControlView(HasTraits):
             self.bad_data_mode_toggle = True
         elif self.edit == 'Not Editing':
             self.mark_bad_data_mode = 'off'
-            self.model.selected_target = 'None'
         else:
             self.mark_bad_data_mode = 'off'
 
