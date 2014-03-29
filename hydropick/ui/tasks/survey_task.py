@@ -103,7 +103,7 @@ class SurveyTask(Task):
     def _move_legend_action_default(self):
         ''' need to make this a trait to have access to action.checked state
         '''
-        action = CentralPaneAction(name='disable pan',
+        action = CentralPaneAction(name='disable pan - move legend',
                                    method='on_move_legend',
                                    image=ImageResource("application-export"),
                                    style='toggle',

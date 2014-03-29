@@ -446,10 +446,14 @@ class SurveyLineView(ModelView):
 
     @on_trait_change('plot_selection_view.visible_frequencies')
     def change_visible_frequencies(self):
-        ''' update visible hplots based on visible freq checkboxes'''
+        ''' update visible hplots based on visible freq checkboxes
+        this will reset zoom and edit modes'''
+        cv = self.control_view
+        cv.edit = 'Not Editing'
         vis_hplots = self.plot_selection_view.visible_frequencies
         self.plot_container.selected_hplots = vis_hplots
         self.plot_container.set_hplot_visibility()
+        self.zoom_extent()
 
     @on_trait_change('plot_selection_view.intensity_profile')
     def change_intensity_profile_visibility(self):
