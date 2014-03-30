@@ -75,6 +75,9 @@ class SurveyTask(Task):
     #: whether or not there is a current group
     have_current_group = Property(Bool, depends_on='current_survey_line_group')
 
+    #: whether or not there is a current survey
+    have_survey = Property(Bool, depends_on='survey')
+
     #: the object that manages Undo/Redo stacks
     undo_manager = Supports(IUndoManager)
 
@@ -117,13 +120,7 @@ class SurveyTask(Task):
                                          PaneItem('hydropick.survey_map'),
                                          PaneItem('hydropick.survey_depth_line'),
                                          )
-                            )
-        # return TaskLayout(left=HSplitter(VSplitter(PaneItem('hydropick.survey_data'),
-        #                                            PaneItem('hydropick.survey_map'),
-        #                                            PaneItem('hydropick.message')),
-        #                                  PaneItem('hydropick.survey_depth_line')
-        #                                  )
-        #                   )
+                          )
 
     def _menu_bar_default(self):
         from apptools.undo.action.api import UndoAction, RedoAction
@@ -138,10 +135,20 @@ class SurveyTask(Task):
                     id='Open', name='Open'
                 ),
                 SGroup(
+                    TaskAction(name="Load Pic File", method='on_load_pic_file',
+                               enabled_name='have_survey'),
+                    id='LoadPic', name='Load Pic File'
+                ),
+                SGroup(
+                    TaskAction(name="Load Corestick File", method='on_load_corestick',
+                               enabled_name='have_survey'),
+                    id='LoadCore', name='Load Corestick File'
+                ),
+                SGroup(
                     TaskAction(name="Save", method='on_save', accelerator='Ctrl+S',
                                enabled_name='dirty'),
                     TaskAction(name="Save As...", method='on_save_as',
-                               accelerator='Ctrl+Shift+S', enabled_name='survey'),
+                               accelerator='Ctrl+Shift+S', enabled_name='have_survey'),
                     id='Save', name='Save'
                 ),
                 id='File', name="&File",
@@ -162,6 +169,9 @@ class SurveyTask(Task):
                                       accelerator='Ctrl+Delete',
                                       enabled_name='have_current_group',
                                       command_stack_name='command_stack'),
+                    TaskAction(name='Replace Group with Selected',
+                               method='on_replace_group',
+                               enabled_name='have_current_group'),
                     id='LineGroupGroup', name="Line Group Group",
                 ),
                 id='Edit', name="&Edit",
@@ -281,17 +291,17 @@ class SurveyTask(Task):
         from .survey_map_pane import SurveyMapPane
         from .survey_depth_pane import SurveyDepthPane
         from .message_pane import MessagePane
-
+        print 'creating dock panes with survey', self.survey
         data = SurveyDataPane(survey=self.survey)
         self.on_trait_change(lambda new: setattr(data, 'survey', new), 'survey')
 
-        map = SurveyMapPane(survey=self.survey)
-        self.on_trait_change(lambda new: setattr(map, 'survey', new), 'survey')
+        map_pane = SurveyMapPane(survey=self.survey)
+        self.on_trait_change(lambda new: setattr(map_pane, 'survey', new), 'survey')
 
         depth = SurveyDepthPane()
         message = MessagePane()
 
-        return [data, map, depth, message]
+        return [data, map_pane, depth, message]
 
     def _survey_changed(self):
         from apptools.undo.api import CommandStack
@@ -332,7 +342,7 @@ class SurveyTask(Task):
         self._prompt_for_save()
 
         survey_directory = DirectoryDialog(message="Select survey to import:",
-                                            new_directory=False)
+                                           new_directory=False)
         if survey_directory.open() == OK:
             survey = import_survey(survey_directory.path)
             self.survey = survey
@@ -346,7 +356,18 @@ class SurveyTask(Task):
         """ Saves a hydrological survey file """
         raise NotImplementedError
 
-    def on_save_as(self):
+    def on_open(self):
+        """ Opens a hydrological survey file """
+        self._prompt_for_save()
+        raise NotImplementedError
+
+    def on_load_pic_file(self):
+        """ Saves a hydrological survey file """
+        print self.survey
+        print self.have_survey
+        raise NotImplementedError
+
+    def on_load_corestick(self):
         """ Saves a hydrological survey file in a different location """
         raise NotImplementedError
 
@@ -359,6 +380,13 @@ class SurveyTask(Task):
                                 survey_lines=self.selected_survey_lines)
         command = AddSurveyLineGroup(data=self.survey, group=group)
         return command
+
+    def on_replace_group(self):
+        """ Adds all selected lines to group: 
+        easy way to add individual lines to group
+        """
+        group = self.current_survey_line_group
+        group.survey_lines = self.selected_survey_lines
 
     def on_delete_group(self):
         """ Deletes a survey line group from a survey """
@@ -385,6 +413,12 @@ class SurveyTask(Task):
 
     def _get_have_current_group(self):
         return self.current_survey_line_group is not None
+
+    def _get_have_survey(self):
+        ''' currently treating new survey like None since we do not have 
+        a concept of creating a survey from scratch.
+        '''
+        return self.survey.name != 'New Survey'
 
     def _command_stack_default(self):
         """ Return the default undo manager """
