@@ -281,6 +281,13 @@ class SurveyLineView(ModelView):
     #==========================================================================
     # Notifications, Handlers or Callbacks
     #==========================================================================
+    @on_trait_change('model:[final_lake_depth, final_preimpoundment_depth,
+                     status, status_string]')
+    def save_survey_line(self, obj, name, old, new):
+        logger.info('survey_line {} attribute {} changed: saving'
+                    .format(self.model.survey_line.name, name))
+        self.model.survey_line.save_to_disk()
+
     @on_trait_change('model.anytrait')
     def logchange(self, obj, name, old, new):
         logger.debug('DATASESSION trait changed: {}'
