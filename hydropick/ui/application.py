@@ -139,7 +139,6 @@ class Application(HasTraits):
 
     def get_logging_handler(self, log_level=None):
         logfile = os.path.join(self.application_home, 'hydropick.log')
-        print logfile, self.application_home, log_level
         # make handler
         from logging.handlers import RotatingFileHandler
         handler = RotatingFileHandler(logfile, backupCount=5)
@@ -162,7 +161,6 @@ class Application(HasTraits):
         return SurveyTask()
 
     def get_formatter(self, log_level=None):
-        print 'fmt1', log_level, logging.DEBUG
         if log_level:
             log_level = int(log_level)
         if log_level == int(logging.DEBUG):
@@ -180,12 +178,13 @@ class Application(HasTraits):
 
 
 class Filter(object):
+    ''' Filter object used by logger to write logging records to a msg string
+    '''
     def __init__(self, task, formatter=None):
         self.task = task
         self.formatter = formatter
 
     def filter(self, record):
-        print record.getMessage()
         new_string = self.formatter.format(record) + '\n'
         self.task.msg_string = new_string + self.task.msg_string
         return True
