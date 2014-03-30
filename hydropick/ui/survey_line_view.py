@@ -281,17 +281,18 @@ class SurveyLineView(ModelView):
     #==========================================================================
     # Notifications, Handlers or Callbacks
     #==========================================================================
-    @on_trait_change('model:[final_lake_depth, final_preimpoundment_depth,
-                     status, status_string]')
+
+    @on_trait_change('model:[final_lake_depth, final_preimpoundment_depth,' +
+                     'status, status_string]')
     def save_survey_line(self, obj, name, old, new):
-        logger.info('survey_line {} attribute {} changed: saving'
+        logger.info('survey_line {} attribute "{}" changed: saving'
                     .format(self.model.survey_line.name, name))
         self.model.survey_line.save_to_disk()
 
     @on_trait_change('model.anytrait')
     def logchange(self, obj, name, old, new):
         logger.debug('DATASESSION trait changed: {}'
-                     .format((obj, name, old, new)))
+                     .format((name, old, new)))
 
     def toggle_mask_edit(self, obj, name, old, new):
         ''' if key toggle event fires from a tool, toggle the control view
@@ -316,7 +317,7 @@ class SurveyLineView(ModelView):
         '''
         if action.checked:
             self.control_view.edit = 'Not Editing'
-        self.control_view = action.checked
+        self.control_view.zoom_checked = action.checked
         for zoom_tool in self.plot_container.zoom_tools.values():
             zoom_tool.always_on = action.checked
 
@@ -383,7 +384,6 @@ class SurveyLineView(ModelView):
                 self._change_target('mask','None')
             # if selected_target is not None, then this was reached by
             # changing the line so we don't need to do anything else
-        logger.debug('selectedtgt {}'.format(self.model.selected_target))
 
     @on_trait_change('model')
     def update_plot_container(self):

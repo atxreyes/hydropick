@@ -293,7 +293,7 @@ class SurveyMapView(ModelView):
         return plot
 
     def select_point(self, event):
-        ''' single click in map toggles line selection status in selected lines
+        ''' single rt  click in map toggles line selection status in selected lines
         '''
         p = Point(event)
         for line in self.survey_lines:
@@ -301,7 +301,7 @@ class SurveyMapView(ModelView):
                 self._select_line(line)
 
     def id_point(self, event):
-        ''' single rt click displays line id in text on map
+        ''' single left click displays line id in text on map
         '''
         p = Point(event)
         text = None
@@ -315,7 +315,7 @@ class SurveyMapView(ModelView):
         self.text_overlay.invalidate_and_redraw()
 
     def current_point(self, event):
-        ''' double click in map sets line as current survey line (for editing)
+        ''' double left click in map sets line as current survey line (for editing)
         '''
         p = Point(event)
         for line in self.survey_lines:

@@ -300,10 +300,20 @@ class DepthLineView(HasStrictTraits):
             survey_line = self.data_session.survey_line
             match = self.model.survey_line_name == survey_line.name
             if match:
-                logger.debug('saved change to {} : from {} to {} '
+                logger.info('saved change to {} : from {} to {}\n'
                              .format(name, old, new))
                 self.save_model_to_surveyline(model=self.model,
                                               survey_line=survey_line)
+                if name == 'line_type':
+                    # delete model from previous dict on survey line
+                    logger.debug('deleting copy from {}'.
+                                 format(old))
+                    if self.model.line_type == 'current surface':
+                        survey_line.preimpoundment_depths.pop(self.model.name)
+                    else:
+                        survey_line.lake_depths.pop(self.model.name)
+                    survey_line.save_to_disk()
+                    self.update_plot()
             else:
                 logger.warning('changes not saved. data session does not' +
                                ' match depth line survey line name')
@@ -472,7 +482,9 @@ class DepthLineView(HasStrictTraits):
         self.validate_name(model)
 
         # if depth line exists with same name for survey line, get object
-        existing = self.check_if_name_is_used(model, survey_line=survey_line)
+        if self.no_problem:
+            existing = self.check_if_name_is_used(model,
+                                                  survey_line=survey_line)
 
         # if not existing : continue to update
         # if existing check overwrite name and overwrite lock
@@ -485,12 +497,13 @@ class DepthLineView(HasStrictTraits):
                      ' If this is apply to group, then you must select ' +
                      'overwrite name when applying'.format(survey_line.name))
                 self.log_problem(s)
-            elif not overwrite_locked:
+            elif model.locked and not overwrite_locked:
                 # existing line with same name is locked so do not write
-                s = ('line {} on survey line {} is locked and overwrite' +
+                s = ('line {} on survey line {} is locked and overwrite'
+                     .format(model.name, survey_line.name) +
                      ' locked is not checked (for apply to group). Check it' +
                      ' next time if you want to overwrite this, or unlock line'
-                     .format(model.name, survey_line.name))
+                     )
                 self.log_problem(s)
 
         # now update array data
@@ -706,13 +719,14 @@ class DepthLineView(HasStrictTraits):
             model = self.model
 
         # check that algorithm is selected and valid
-        not_alg = model.source != 'algorithm'
+        algorithm_selected = model.source == 'algorithm'
+        algorithm_not_selected = not algorithm_selected
         alg_choices = self.algorithms.keys()
         good_alg_name = model.source_name in alg_choices
-        if not_alg or not good_alg_name:
-            self.log_problem('Invalid algorithm! Application Problem' +
-                             ': not algorithm = {}, good alg name = {}'
-                             .format(not_alg, good_alg_name))
+        if algorithm_not_selected or not good_alg_name:
+            self.log_problem('Invalid algorithm!' +
+                             ': source is alg = {}, valid alg name = {}'
+                             .format(algorithm_selected, good_alg_name))
 
         # if current alg not set then cofigure will create it and open edit.
         if self.no_problem and self.current_algorithm is None:
@@ -723,7 +737,9 @@ class DepthLineView(HasStrictTraits):
             self.check_args(model)
 
         # check model source name matched current algorithm
-        match = model.source_name == self.current_algorithm.name
+        if self.no_problem:
+            match = model.source_name == self.current_algorithm.name
+
         if self.no_problem and not match:
             self.log_problem('alg name does not match configured algorithm.' +
                              'Need to configure algorithm')
