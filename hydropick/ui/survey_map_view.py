@@ -314,7 +314,6 @@ class SurveyMapView(ModelView):
         self.text_overlay.text = text
         self.text_overlay.invalidate_and_redraw()
 
-
     def current_point(self, event):
         ''' double click in map sets line as current survey line (for editing)
         '''

@@ -13,7 +13,7 @@ from traits.api import (Bool, Property, Supports, List, on_trait_change, Dict,
                         Str, Instance)
 
 from pyface.api import ImageResource
-from pyface.tasks.api import Task, TaskLayout, PaneItem, VSplitter
+from pyface.tasks.api import Task, TaskLayout, PaneItem, VSplitter, HSplitter
 from pyface.tasks.action.api import DockPaneToggleGroup, SMenuBar, SMenu, \
     SGroup, SToolBar, TaskAction, CentralPaneAction
 from apptools.undo.i_undo_manager import IUndoManager
@@ -87,6 +87,8 @@ class SurveyTask(Task):
     # refernce to this action so that the checked trait can be easily monitored
     move_legend_action = Instance(CentralPaneAction)
 
+    msg_string = Str
+
     ###########################################################################
     # 'Task' interface.
     ###########################################################################
@@ -116,6 +118,12 @@ class SurveyTask(Task):
                                          PaneItem('hydropick.survey_depth_line'),
                                          )
                             )
+        # return TaskLayout(left=HSplitter(VSplitter(PaneItem('hydropick.survey_data'),
+        #                                            PaneItem('hydropick.survey_map'),
+        #                                            PaneItem('hydropick.message')),
+        #                                  PaneItem('hydropick.survey_depth_line')
+        #                                  )
+        #                   )
 
     def _menu_bar_default(self):
         from apptools.undo.action.api import UndoAction, RedoAction
@@ -272,6 +280,7 @@ class SurveyTask(Task):
         from .survey_data_pane import SurveyDataPane
         from .survey_map_pane import SurveyMapPane
         from .survey_depth_pane import SurveyDepthPane
+        from .message_pane import MessagePane
 
         data = SurveyDataPane(survey=self.survey)
         self.on_trait_change(lambda new: setattr(data, 'survey', new), 'survey')
@@ -280,8 +289,9 @@ class SurveyTask(Task):
         self.on_trait_change(lambda new: setattr(map, 'survey', new), 'survey')
 
         depth = SurveyDepthPane()
+        message = MessagePane()
 
-        return [data, map, depth]
+        return [data, map, depth, message]
 
     def _survey_changed(self):
         from apptools.undo.api import CommandStack

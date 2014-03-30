@@ -12,7 +12,7 @@ import sys
 import logging
 
 from traits.etsconfig.etsconfig import ETSConfig
-from traits.api import HasTraits, Directory, Instance, Supports
+from traits.api import HasTraits, Directory, Instance, Supports, Str
 
 class Application(HasTraits):
     """ The main Hydropick application object """
@@ -58,10 +58,13 @@ class Application(HasTraits):
 
     def parse_arguments(self):
         import argparse
-        parser = argparse.ArgumentParser(description="Hydropick: a hydrological survey editor")
+        parser = argparse.ArgumentParser(description
+                                         ="Hydropick: a hydrological survey editor")
         parser.add_argument('--import', help='survey data to import',
                             dest='import_', metavar='DIR')
-        parser.add_argument('--with-picks', help='if included, then pre and pick files will be imported',
+        parser.add_argument('--with-picks', 
+                            help=('if included, then pre and pick' +
+                                  'files will be imported'),
                             dest='with_picks_', action='store_true')
         parser.add_argument('-v', '--verbose', action='store_const', dest='logging',
                             const=logging.INFO, help='verbose logging')
@@ -74,16 +77,22 @@ class Application(HasTraits):
 
     def init(self):
         # set up logging
-        self.logger.addHandler(self.logging_handler)
-
         # parse commandline arguments
         args = self.parse_arguments()
+        handler = self.get_logging_handler()
+        self.logger.addHandler(handler)
         if args.import_:
             from ..io.import_survey import import_survey
             survey = import_survey(args.import_, args.with_picks_)
             self.task.survey = survey
         if args.logging is not None:
             self.logger.setLevel(args.logging)
+        else:
+            self.logger.setLevel(logging.INFO)
+        if args.logging:
+            self.logger.removeHandler(handler)
+            handler = self.get_logging_handler(args.logging)
+            self.logger.addHandler(handler)
 
     def start(self):
         self.logger.info('Starting application')
@@ -126,16 +135,17 @@ class Application(HasTraits):
         return logging.getLogger()
 
     def _logging_handler_default(self):
-        from logging.handlers import RotatingFileHandler
+        return self.get_logging_handler()
+
+    def get_logging_handler(self, log_level=None):
         logfile = os.path.join(self.application_home, 'hydropick.log')
-        print logfile, self.application_home
+        print logfile, self.application_home, log_level
+        # make handler
+        from logging.handlers import RotatingFileHandler
         handler = RotatingFileHandler(logfile, backupCount=5)
         handler.doRollover()
-        # format output
-        datefmt = '%Y%m%d:%H%M%S'
-        line_fmt = '%(asctime)s :: %(name)s : %(levelname)s : %(message)s'
-        formatter = logging.Formatter(line_fmt, datefmt=datefmt)
-        handler.setFormatter(formatter)
+        handler.setFormatter(self.get_formatter(log_level))
+        handler.addFilter(self.get_filter(log_level))
         return handler
 
     def _gui_default(self):
@@ -150,3 +160,32 @@ class Application(HasTraits):
     def _task_default(self):
         from .tasks.survey_task import SurveyTask
         return SurveyTask()
+
+    def get_formatter(self, log_level=None):
+        print 'fmt1', log_level, logging.DEBUG
+        if log_level:
+            log_level = int(log_level)
+        if log_level == int(logging.DEBUG):
+            fmt = '%(asctime)s :: %(name)s : %(levelname)s : %(message)s'
+        else:
+            fmt = '%(asctime)s :: %(levelname)s : %(message)s'
+        datefmt = '%Y%m%d:%H%M%S'
+        formatter = logging.Formatter(fmt, datefmt=datefmt)
+        return formatter
+
+    def get_filter(self, log_level=None):
+        myfilter = Filter(self.task,
+                          formatter=self.get_formatter(log_level))
+        return myfilter
+
+
+class Filter(object):
+    def __init__(self, task, formatter=None):
+        self.task = task
+        self.formatter = formatter
+
+    def filter(self, record):
+        print record.getMessage()
+        new_string = self.formatter.format(record) + '\n'
+        self.task.msg_string = new_string + self.task.msg_string
+        return True
