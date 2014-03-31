@@ -81,9 +81,19 @@ class SurveyTask(Task):
     #: the object that holds the Task's commands
     command_stack = Supports(ICommandStack)
 
+    # refernce to this action so that the checked trait can be easily monitored
+    zoom_box_action = Instance(CentralPaneAction)
+
     ###########################################################################
     # 'Task' interface.
     ###########################################################################
+    def _zoom_box_action_default(self):
+        action = CentralPaneAction(name='Zoom Box (press "z")',
+                                   method='on_zoom_box',
+                                   image=ImageResource("magnifier-zoom-fit"),
+                                   style='toggle',
+                                   enabled_name='show_view')
+        return action
 
     def _default_layout_default(self):
         return TaskLayout(left=VSplitter(PaneItem('hydropick.survey_data'),
@@ -214,10 +224,10 @@ class SurveyTask(Task):
                            image=ImageResource("arrow-right")),
                 CentralPaneAction(name='Zoom Extent',
                                   method='on_zoom_extent',
-                                  image=ImageResource("zoom_extent"),
+                                  image=ImageResource("zone-resize"),
                                   enabled_name='show_view'),
-                CentralPaneAction(name='Zoom Box (press "z")',
-                                  method='on_zoom_box',
+                self.zoom_box_action,
+                CentralPaneAction(name='Zoom Box Once (press "z")',
                                   enabled_name='False'),
                 id='Survey', name="Survey", show_tool_names=False,
                 image_size=(24, 24)
@@ -254,7 +264,7 @@ class SurveyTask(Task):
         self.on_trait_change(lambda new: setattr(map, 'survey', new), 'survey')
 
         depth = SurveyDepthPane()
-        
+
         return [data, map, depth]
 
     def _survey_changed(self):

@@ -39,7 +39,6 @@ def get_number_of_bin_files(path):
     file_names = []
     for root, dirs, files in os.walk(path):
         files_bin = [f for f in files if os.path.splitext(f)[1] == '.bin']
-        print files_bin
         file_names += files_bin
     return len(file_names)
 
@@ -83,7 +82,7 @@ def import_lake(name, directory, h5file):
             if os.path.splitext(filename)[1] == '.shp':
                 shp_file = os.path.join(directory, filename)
                 survey_io.import_shoreline_from_file(name, shp_file, h5file)
-                print 'imported shp file:', filename
+                logger.info('imported shp file:{}'.format(filename))
                 break
         shoreline = survey_io.read_shoreline_from_hdf(h5file)
     return shoreline
@@ -93,8 +92,6 @@ def import_sdi(directory, h5file):
     from hydropick.model.survey_line_group import SurveyLineGroup
     survey_lines = []
     survey_line_groups = []
-    bad_lines = []
-    approved_lines = []
 
     location, proj_dir = os.path.split(directory)
     N_bin_total = get_number_of_bin_files(directory)
@@ -102,45 +99,50 @@ def import_sdi(directory, h5file):
     for root, dirs, files in os.walk(directory):
         group_lines = []
         currentd = root.split(location)[1]
+        if 'Bad_data' in currentd:
+            files_bin = []
+        else:
+            files_bin = [f for f in files if os.path.splitext(f)[1] == '.bin']
         N_dir = len(dirs)
-        files_bin = [f for f in files if os.path.splitext(f)[1] == '.bin']
         N_files = len(files_bin)
-        print '\nchecking project folder: "{}"\n with {} sub-directories'\
-               .format(currentd, N_dir)
-        print 'loading {} .bin files'.format(N_files)
+        logger.info('\nchecking project folder: "{}"\n with {} sub-directories'
+                    .format(currentd, N_dir))
+        logger.info('loading {} .bin files'.format(N_files))
         i = 0
         for filename in files_bin:
+            # log status
             i += 1
             i_total += 1
             linename = os.path.splitext(filename)[0]
-            print '{}  ({}/{} in folder : {}/{} total)'\
-                  .format(linename, i, N_files, i_total, N_bin_total)
+            logger.info('{}  ({}/{} in folder : {}/{} total)'
+                        .format(linename, i, N_files, i_total, N_bin_total))
+            # try to read line
             try:
                 line = read_survey_line_from_hdf(h5file, linename)
             except (IOError, tables.exceptions.NoSuchNodeError):
                 logger.info("Importing sdi file '%s'", filename)
                 try:
-                    import_survey_line_from_file(os.path.join(root,
-                                                              filename),
+                    import_survey_line_from_file(os.path.join(root, filename),
                                                  h5file, linename)
                     line = read_survey_line_from_hdf(h5file, linename)
                 except Exception as e:
-                    # XXX: blind except to read all the lines that we
-                    # can for now
+                    # XXX: blind except to read all the lines we can for now
                     s = 'Reading file {} failed with error "{}"'
                     msg = s.format(filename, e)
                     warnings.warn(msg)
                     logger.warning(msg)
                     line = None
             if line:
+                ### FIXME : need to be merged with proj dir branch
+                line.project_dir = directory
                 group_lines.append(line)
-                
+
         if group_lines:
             dirname = os.path.basename(root)
             group = SurveyLineGroup(name=dirname, survey_lines=group_lines)
             survey_lines += group_lines
             survey_line_groups.append(group)
-    return survey_lines, survey_line_groups, bad_lines, approved_lines
+    return survey_lines, survey_line_groups
 
 
 def import_survey(directory, with_pick_files=False):
@@ -151,7 +153,7 @@ def import_survey(directory, with_pick_files=False):
 
     # HDF5 datastore file for survey
     hdf5_file = os.path.join(directory, name + '.h5')
-    print hdf5_file
+    logger.info('hdf5 files is {}'.format(hdf5_file))
 
     # read in core samples
     core_samples = import_cores(os.path.join(directory, 'Coring'), hdf5_file)
@@ -160,8 +162,8 @@ def import_survey(directory, with_pick_files=False):
     lake = import_lake(name, os.path.join(directory, 'ForSurvey'), hdf5_file)
 
     # read in sdi data
-    l, g, b, a =  import_sdi(os.path.join(directory, 'SDI_Data'), hdf5_file)
-    survey_lines, survey_line_groups, bad_lines, approved_lines = l, g, b, a
+    l, g = import_sdi(os.path.join(directory, 'SDI_Data'), hdf5_file)
+    survey_lines, survey_line_groups = l, g
 
     # read in edits to sdi data
     if with_pick_files:

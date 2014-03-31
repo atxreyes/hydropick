@@ -31,6 +31,7 @@ AUTOSAVE_EDIT_ON_CHANGE = True
 
 EDIT_MASK_TOGGLE_STATE_CHAR = 't'
 
+
 class SurveyLineView(ModelView):
     """ View Class for working with survey line data to find depth profile.
 
@@ -110,6 +111,9 @@ class SurveyLineView(ModelView):
     def _plot_container_default(self):
         ''' Create initial plot container'''
         container = PlotContainer()
+        container.on_trait_change(self.legend_capture,
+                                  name='legend_drag')
+
         return container
 
     def _plotdata_default(self):
@@ -120,8 +124,7 @@ class SurveyLineView(ModelView):
 
     def _control_view_default(self):
         ''' Creates ControlView object filled with associated traits'''
-        cv = ControlView(
-                         model=self.model,
+        cv = ControlView(model=self.model,
                          mark_bad_data_mode='off',
                          edit='Not Editing',
                          )
@@ -165,10 +168,12 @@ class SurveyLineView(ModelView):
         for key, hpc in self.plot_container.hplot_dict.items():
             if key is not 'mini':
                 main = hpc.components[0]
+                ybounds = self.model.ybounds[key]
                 tool = TraceTool(main)
+                tool.ybounds = ybounds
                 tool.toggle_character = EDIT_MASK_TOGGLE_STATE_CHAR
                 tool.on_trait_change(self.toggle_mask_edit,
-                                    'toggle_mask_edit_event')
+                                     'toggle_mask_edit_event')
                 main.tools.append(tool)
                 tools[key] = tool
         return tools
@@ -191,8 +196,10 @@ class SurveyLineView(ModelView):
         tools = {}
         for key, hpc in self.plot_container.hplot_dict.items():
             if key is not 'mini':
+                ybounds = self.model.ybounds[key]
                 main = hpc.components[0]
                 tool = DepthTool(main)
+                tool.ybounds = ybounds
                 tool.on_trait_change(self.update_depth, 'depth')
                 main.tools.append(tool)
                 tools[key] = tool
@@ -291,6 +298,13 @@ class SurveyLineView(ModelView):
         for tool in self.trace_tools.values():
             tool.set_mask_mode(mode)
 
+    def zoom_box_toggle(self, action):
+        for zoom_tool in self.plot_container.zoom_tools.values():
+            if action.checked:
+                zoom_tool.always_on = True
+            else:
+                zoom_tool.always_on = False
+
     def set_edit_enabled(self, object, name, old, new):
         ''' enables editing tool based on ui edit selector'''
         cv = self.control_view
@@ -304,6 +318,8 @@ class SurveyLineView(ModelView):
             # 'Not Editing'
             edit_allowed = False
             edit_mask = False
+            cv.model.selected_target = 'None'
+            self.model.selected_target = 'None'
         logger.debug('setting edit tools with allowed/mask = {}/{}'
                      .format(edit_allowed, edit_mask))
         for tool in self.trace_tools.values():
@@ -368,6 +384,9 @@ class SurveyLineView(ModelView):
         '''reset all zoom tools'''
         for zoom_tool in self.plot_container.zoom_tools.values():
             zoom_tool._reset_state_pressed()
+            mini = self.plot_container.hplot_dict['mini'].components[0]
+            range_sel_tool = mini.plots['reference'][0].tools[0]
+            range_sel_tool.deselect()
 
     def image_adjustment_dialog(self):
         ''' brings up image C&B edit dialog. close to continue'''
@@ -414,14 +433,6 @@ class SurveyLineView(ModelView):
         show_profile = self.plot_selection_view.intensity_profile
         self.plot_container.show_intensity_profiles = show_profile
         self.plot_container.set_intensity_profile_visibility(show_profile)
-
-    @on_trait_change('apply_button')
-    def add_algorithm_line(self):
-        ''' result of applying selected algorithm.  Makes new depth line'''
-        algorithm = self.algorithms[self.algorithm_name]()     # add args?
-        new_line_data = algorithm.process_line(self.model.survey_line)
-        new_line_dict = {str(self.new_line_name): new_line_data}
-        self.add_lines(**new_line_dict)
 
     def update_locations(self, image_index):
         ''' Called by location_tool to update display readouts as mouse moves
@@ -540,7 +551,6 @@ class SurveyLineView(ModelView):
                     old_color = self.plot_container.mask_color
                     old_target_plot.edge_color = old_color
                 else:
-                    cv = self.plot_container.mask_color
                     old_target_depth_line = self.model.depth_dict[old]
                     old_color = old_target_depth_line.color
                     old_target_plot.color = old_color
@@ -558,9 +568,12 @@ class SurveyLineView(ModelView):
             else:
                 # depth arrays are stored in depthline objects
                 old_target_depth_line.depth_array = edited_data
-                if old_target_depth_line.edited == False:
+                if old_target_depth_line.edited is False:
                     # never edited so set to edited if and tool has edited it.
                     old_target_depth_line.edited = any(edited)
+            # update survey_line on disk
+            self.model.survey_line.save_to_disk()
+
         self.plot_container.vplot_container.invalidate_and_redraw()
 
     def select_line(self, object, name, old, visible_lines):

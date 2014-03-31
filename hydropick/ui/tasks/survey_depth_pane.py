@@ -22,6 +22,7 @@ from hydropick.model.depth_line import DepthLine
 
 logger = logging.getLogger(__name__)
 
+
 class SurveyDepthPane(TraitsDockPane):
     """ The dock pane holding the map view of the survey """
 
@@ -101,11 +102,12 @@ class SurveyDepthPane(TraitsDockPane):
         sanity_check = data.survey_line is self.current_survey_line
         if data and sanity_check:
             view = DepthLineView(model=DepthLine(),
-                                 selected_depth_line_name='none',
                                  data_session=self.current_data_session,
                                  algorithms=self.algorithms,
                                  hdf5_file=self.survey.hdf5_file
                                  )
+            view.selected_depth_line_name = 'New Line'
+            view.model = view.create_new_line()
             if self.selected_survey_lines:
                 self._update_depth_view_survey_lines(view=view)
             self.show_view = True
