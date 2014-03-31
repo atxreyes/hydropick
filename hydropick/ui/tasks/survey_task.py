@@ -7,13 +7,14 @@
 
 from __future__ import absolute_import
 
+import os
 import logging
 
 from traits.api import (Bool, Property, Supports, List, on_trait_change, Dict,
                         Str, Instance)
 
 from pyface.api import ImageResource
-from pyface.tasks.api import Task, TaskLayout, PaneItem, VSplitter
+from pyface.tasks.api import Task, TaskLayout, PaneItem, VSplitter, HSplitter
 from pyface.tasks.action.api import DockPaneToggleGroup, SMenuBar, SMenu, \
     SGroup, SToolBar, TaskAction, CentralPaneAction
 from apptools.undo.i_undo_manager import IUndoManager
@@ -75,6 +76,9 @@ class SurveyTask(Task):
     #: whether or not there is a current group
     have_current_group = Property(Bool, depends_on='current_survey_line_group')
 
+    #: whether or not there is a current survey
+    have_survey = Property(Bool, depends_on='survey')
+
     #: the object that manages Undo/Redo stacks
     undo_manager = Supports(IUndoManager)
 
@@ -84,13 +88,30 @@ class SurveyTask(Task):
     # refernce to this action so that the checked trait can be easily monitored
     zoom_box_action = Instance(CentralPaneAction)
 
+    # refernce to this action so that the checked trait can be easily monitored
+    move_legend_action = Instance(CentralPaneAction)
+
+    msg_string = Str
+
     ###########################################################################
     # 'Task' interface.
     ###########################################################################
     def _zoom_box_action_default(self):
+        ''' need to make this a trait to have access to action.checked state
+        '''
         action = CentralPaneAction(name='Zoom Box (press "z")',
                                    method='on_zoom_box',
                                    image=ImageResource("magnifier-zoom-fit"),
+                                   style='toggle',
+                                   enabled_name='show_view')
+        return action
+
+    def _move_legend_action_default(self):
+        ''' need to make this a trait to have access to action.checked state
+        '''
+        action = CentralPaneAction(name='disable pan - move legend',
+                                   method='on_move_legend',
+                                   image=ImageResource("application-export"),
                                    style='toggle',
                                    enabled_name='show_view')
         return action
@@ -100,25 +121,43 @@ class SurveyTask(Task):
                                          PaneItem('hydropick.survey_map'),
                                          PaneItem('hydropick.survey_depth_line'),
                                          )
-                            )
+                          )
 
     def _menu_bar_default(self):
         from apptools.undo.action.api import UndoAction, RedoAction
         menu_bar = SMenuBar(
             SMenu(
                 SGroup(
-                    TaskAction(name="Import", method='on_import', accelerator='Ctrl+I'),
+                    TaskAction(name="Import", method='on_import',
+                               accelerator='Ctrl+I'),
                     id='New', name='New'
                 ),
                 SGroup(
-                    TaskAction(name="Open", method='on_open', accelerator='Ctrl+O'),
+                    TaskAction(name="Import with Pic Files", 
+                               method='on_import_with_pic'),
+                    id='NewPic', name='NewPic'
+                ),
+                SGroup(
+                    TaskAction(name="Open", method='on_open',
+                               accelerator='Ctrl+O'),
                     id='Open', name='Open'
+                ),
+                SGroup(
+                    TaskAction(name="Load Pic File", method='on_load_pic_file',
+                               enabled_name='have_survey'),
+                    id='LoadPic', name='Load Pic File'
+                ),
+                SGroup(
+                    TaskAction(name="Load Corestick File",
+                               method='on_load_corestick',
+                               enabled_name='have_survey'),
+                    id='LoadCore', name='Load Corestick File'
                 ),
                 SGroup(
                     TaskAction(name="Save", method='on_save', accelerator='Ctrl+S',
                                enabled_name='dirty'),
                     TaskAction(name="Save As...", method='on_save_as',
-                               accelerator='Ctrl+Shift+S', enabled_name='survey'),
+                               accelerator='Ctrl+Shift+S', enabled_name='have_survey'),
                     id='Save', name='Save'
                 ),
                 id='File', name="&File",
@@ -133,12 +172,16 @@ class SurveyTask(Task):
                 SGroup(
                     TaskCommandAction(name='New Group', method='on_new_group',
                                       accelerator='Ctrl+Shift+N',
+                                      enabled_name='have_survey',
                                       command_stack_name='command_stack'),
                     TaskCommandAction(name='Delete Group',
                                       method='on_delete_group',
                                       accelerator='Ctrl+Delete',
                                       enabled_name='have_current_group',
                                       command_stack_name='command_stack'),
+                    TaskAction(name='Replace Group with Selected',
+                               method='on_replace_group',
+                               enabled_name='have_current_group'),
                     id='LineGroupGroup', name="Line Group Group",
                 ),
                 id='Edit', name="&Edit",
@@ -222,13 +265,14 @@ class SurveyTask(Task):
                            method='on_next_line',
                            enabled_name='survey.survey_lines',
                            image=ImageResource("arrow-right")),
+                self.move_legend_action,
                 CentralPaneAction(name='Zoom Extent',
                                   method='on_zoom_extent',
                                   image=ImageResource("zone-resize"),
                                   enabled_name='show_view'),
                 self.zoom_box_action,
                 CentralPaneAction(name='Zoom Box Once (press "z")',
-                                  enabled_name='False'),
+                                  enabled_name=''),
                 id='Survey', name="Survey", show_tool_names=False,
                 image_size=(24, 24)
             ),
@@ -256,16 +300,17 @@ class SurveyTask(Task):
         from .survey_data_pane import SurveyDataPane
         from .survey_map_pane import SurveyMapPane
         from .survey_depth_pane import SurveyDepthPane
-
+        from .message_pane import MessagePane
         data = SurveyDataPane(survey=self.survey)
         self.on_trait_change(lambda new: setattr(data, 'survey', new), 'survey')
 
-        map = SurveyMapPane(survey=self.survey)
-        self.on_trait_change(lambda new: setattr(map, 'survey', new), 'survey')
+        map_pane = SurveyMapPane(survey=self.survey)
+        self.on_trait_change(lambda new: setattr(map_pane, 'survey', new), 'survey')
 
         depth = SurveyDepthPane()
+        message = MessagePane()
 
-        return [data, map, depth]
+        return [data, map_pane, depth, message]
 
     def _survey_changed(self):
         from apptools.undo.api import CommandStack
@@ -306,9 +351,23 @@ class SurveyTask(Task):
         self._prompt_for_save()
 
         survey_directory = DirectoryDialog(message="Select survey to import:",
-                                            new_directory=False)
+                                           new_directory=False)
         if survey_directory.open() == OK:
             survey = import_survey(survey_directory.path)
+            self.survey = survey
+
+    def on_import_with_pic(self):
+        """ Imports hydrological survey data """
+        from pyface.api import DirectoryDialog, OK
+        from ...io.import_survey import import_survey
+
+        # ask the user for save if needed
+        self._prompt_for_save()
+
+        survey_directory = DirectoryDialog(message="Select survey to import:",
+                                           new_directory=False)
+        if survey_directory.open() == OK:
+            survey = import_survey(survey_directory.path, with_pick_files=True)
             self.survey = survey
 
     def on_open(self):
@@ -320,9 +379,39 @@ class SurveyTask(Task):
         """ Saves a hydrological survey file """
         raise NotImplementedError
 
-    def on_save_as(self):
-        """ Saves a hydrological survey file in a different location """
+    def on_load_pic_file(self):
+        """ Saves a hydrological survey file """
+        from pyface.api import FileDialog, OK
+        from ...io.import_survey import (import_cores)
+        dialog = FileDialog(message="Select pic file to import:")
+        dialog.open()
+        if dialog.return_code == OK:
+            hdf5 = self.survey.hdf5_file
+            directory = dialog.directory
+            pic_file = dialog.filename
+            logger.info('loading new pic file "{}"'.format(pic_file))
+            pic_path = os.path.join(directory, pic_file)
+            pic_depth_line = import_cores(h5file=hdf5, core_file=pic_path)
+            self.survey.core_samples =  pic_depth_line
+            self.survey.core_samples_updated = True
         raise NotImplementedError
+
+    def on_load_corestick(self):
+        """ Saves a hydrological survey file in a different location """
+        from pyface.api import FileDialog, OK
+        from ...io.import_survey import (import_cores)
+
+        dialog = FileDialog(message="Select corestick file to import:")
+        dialog.open()
+        if dialog.return_code == OK:
+            hdf5 = self.survey.hdf5_file
+            directory = dialog.directory
+            core_file = dialog.filename
+            logger.info('loading new corestick file "{}"'.format(core_file))
+            corestick_path = os.path.join(directory, core_file)
+            cores = import_cores(h5file=hdf5, core_file=corestick_path)
+            self.survey.core_samples = cores
+            self.survey.core_samples_updated = True
 
     def on_new_group(self):
         """ Adds a new survey line group to a survey """
@@ -333,6 +422,13 @@ class SurveyTask(Task):
                                 survey_lines=self.selected_survey_lines)
         command = AddSurveyLineGroup(data=self.survey, group=group)
         return command
+
+    def on_replace_group(self):
+        """ Adds all selected lines to group: 
+        easy way to add individual lines to group
+        """
+        group = self.current_survey_line_group
+        group.survey_lines = self.selected_survey_lines
 
     def on_delete_group(self):
         """ Deletes a survey line group from a survey """
@@ -359,6 +455,12 @@ class SurveyTask(Task):
 
     def _get_have_current_group(self):
         return self.current_survey_line_group is not None
+
+    def _get_have_survey(self):
+        ''' currently treating new survey like None since we do not have 
+        a concept of creating a survey from scratch.
+        '''
+        return self.survey.name != 'New Survey'
 
     def _command_stack_default(self):
         """ Return the default undo manager """

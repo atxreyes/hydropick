@@ -169,11 +169,11 @@ class SurveyLineView(ModelView):
             if key is not 'mini':
                 main = hpc.components[0]
                 ybounds = self.model.ybounds[key]
-                tool = TraceTool(main)
+                tool = TraceTool(main, drag_button="left")
                 tool.ybounds = ybounds
                 tool.toggle_character = EDIT_MASK_TOGGLE_STATE_CHAR
                 tool.on_trait_change(self.toggle_mask_edit,
-                                     'toggle_mask_edit_event')
+                                     'toggle_mask_edit_mode')
                 main.tools.append(tool)
                 tools[key] = tool
         return tools
@@ -243,8 +243,8 @@ class SurveyLineView(ModelView):
         if self.model:
             # add the freq dependent (3@) data
             for k, img in self.model.frequencies.items():
-                y_key = k+'_y'
-                slice_key = k+'_slice'
+                y_key = k + '_y'
+                slice_key = k + '_slice'
                 kw = {k: self.model.frequencies[k],
                       y_key: self.model.y_arrays[k],
                       slice_key: np.array([]),
@@ -269,7 +269,7 @@ class SurveyLineView(ModelView):
             for line_key, depth_line in self.model.depth_dict.items():
                 x = self.model.distance_array[depth_line.index_array]
                 y = depth_line.depth_array
-                key_x, key_y = line_key + '_x',  line_key + '_y'
+                key_x, key_y = line_key + '_x', line_key + '_y'
                 kw = {key_x: x, key_y: y}
                 d.update_data(**kw)
         return d
@@ -282,31 +282,59 @@ class SurveyLineView(ModelView):
     # Notifications, Handlers or Callbacks
     #==========================================================================
 
+    @on_trait_change('model:[final_lake_depth, final_preimpoundment_depth,' +
+                     'status, status_string]')
+    def save_survey_line(self, obj, name, old, new):
+        logger.info('survey_line {} attribute "{}" changed: saving'
+                    .format(self.model.survey_line.name, name))
+        self.model.survey_line.save_to_disk()
+
+    @on_trait_change('model.anytrait')
+    def logchange(self, obj, name, old, new):
+        logger.debug('DATASESSION trait changed: {}'
+                     .format((name, old, new)))
+
     def toggle_mask_edit(self, obj, name, old, new):
         ''' if key toggle event fires from a tool, toggle the control view
-        and set tools accordingly'''
+        which should set tools accordingly'''
         cv = self.control_view
         cv.toggle_mark_bad_data_mode()
-        self.toggle_trace_tools_mask_edit()
+        #self.set_trace_tools_mask_edit()
 
     @on_trait_change('control_view.mark_bad_data_mode')
     def update_trace_tools(self):
-        self.toggle_trace_tools_mask_edit()
+        self.set_trace_tools_mask_edit()
 
-    def toggle_trace_tools_mask_edit(self):
+    def set_trace_tools_mask_edit(self):
+        ''' this should always correspond to control view mode'''
         mode = self.control_view.mark_bad_data_mode
         for tool in self.trace_tools.values():
             tool.set_mask_mode(mode)
 
     def zoom_box_toggle(self, action):
+        ''' called if zoom box icon is clicked. state given by action.checked
+        If zoom engaged make sure editing is turned off
+        '''
+        if action.checked:
+            self.control_view.edit = 'Not Editing'
+        self.control_view.zoom_checked = action.checked
         for zoom_tool in self.plot_container.zoom_tools.values():
-            if action.checked:
-                zoom_tool.always_on = True
-            else:
-                zoom_tool.always_on = False
+            zoom_tool.always_on = action.checked
+
+    def move_legend(self, action):
+        logger.debug('pan tool toggled')
+        pc = self.plot_container
+        pc.disable_pan(action)
 
     def set_edit_enabled(self, object, name, old, new):
-        ''' enables editing tool based on ui edit selector'''
+        ''' enables editing tool based on ui edit selector
+        '''
+        # anytime we change editing mode we want to change tgt back to None
+        # This may call change tgt if a tgt was selected - in that case line is
+        # saved
+        self.model.selected_target = 'None'
+
+        # now set trace tool state based on edit state
         cv = self.control_view
         if cv.edit == 'Editing':
             edit_allowed = True
@@ -318,8 +346,6 @@ class SurveyLineView(ModelView):
             # 'Not Editing'
             edit_allowed = False
             edit_mask = False
-            cv.model.selected_target = 'None'
-            self.model.selected_target = 'None'
         logger.debug('setting edit tools with allowed/mask = {}/{}'
                      .format(edit_allowed, edit_mask))
         for tool in self.trace_tools.values():
@@ -330,7 +356,7 @@ class SurveyLineView(ModelView):
                 logger.debug('set ymax for trace tool to {}'.format(ymax))
                 tool.mask_value_max = ymax
         if edit_mask:
-            self.toggle_trace_tools_mask_edit()
+            self.set_trace_tools_mask_edit()
 
         # if Edit Mask selected need to change line to mask
         if cv.edit == 'Mark Bad Data':
@@ -341,15 +367,20 @@ class SurveyLineView(ModelView):
                 x, y = self.model.get_mask_xy()
                 self.plotdata.update_data(mask_x=x, mask_y=y)
 
+            # if tgt was None then tgt is still None. Calling change tgt with
+            # None, None will set tgt to 'mask' if in "Mark Bad Data" mode
             if self.model.selected_target == 'None':
                 # explicitly call _change_target
                 self._change_target('None', 'None')
-            else:
-                # tgt not None: change to None will call change_target
-                self.model.selected_target = 'None'
+            # else:
+            #     # tgt not None: change to None will call change_target
+            #     self.model.selected_target = 'None'
+
+        # otherwise it is Editing or Not
         else:
-            if old ==  'Mark Bad Data' and self.model.selected_target == 'None':
-                # was changed out of Edit Mask => change tool tgts to None
+            if old == 'Mark Bad Data':
+                # edit changed out of Edit Mask => change tool tgts to None
+                # need to call change mask explicitly to save mask data
                 self._change_target('mask','None')
             # if selected_target is not None, then this was reached by
             # changing the line so we don't need to do anything else
@@ -422,10 +453,14 @@ class SurveyLineView(ModelView):
 
     @on_trait_change('plot_selection_view.visible_frequencies')
     def change_visible_frequencies(self):
-        ''' update visible hplots based on visible freq checkboxes'''
+        ''' update visible hplots based on visible freq checkboxes
+        this will reset zoom and edit modes'''
+        cv = self.control_view
+        cv.edit = 'Not Editing'
         vis_hplots = self.plot_selection_view.visible_frequencies
         self.plot_container.selected_hplots = vis_hplots
         self.plot_container.set_hplot_visibility()
+        self.zoom_extent()
 
     @on_trait_change('plot_selection_view.intensity_profile')
     def change_intensity_profile_visibility(self):
@@ -433,6 +468,10 @@ class SurveyLineView(ModelView):
         show_profile = self.plot_selection_view.intensity_profile
         self.plot_container.show_intensity_profiles = show_profile
         self.plot_container.set_intensity_profile_visibility(show_profile)
+
+    @on_trait_change('model.current_core')
+    def update_core_info(self):
+        pass
 
     def update_locations(self, image_index):
         ''' Called by location_tool to update display readouts as mouse moves
@@ -448,6 +487,8 @@ class SurveyLineView(ModelView):
         dv.northing = north
         dv.power = power
         dv.gain = gain
+        dv.core_id = self.model.current_core[0]
+        dv.core_distance = self.model.current_core[1]
 
     def adjust_image(self, obj, name, old, new):
         ''' Given a tuple (contrast, brightness) with values
@@ -485,7 +526,7 @@ class SurveyLineView(ModelView):
         b3 = b2 + 1
         data = np.clip(data, b2, b3)
         if invert:
-            data = 1-data
+            data = 1 - data
         self.plot_container.data.update_data({freq: data})
 
     def update_depth(self, depth):
@@ -509,21 +550,25 @@ class SurveyLineView(ModelView):
         directly by the set_edit handler, otherwise through the tgt
         change handler.
         '''
-        logger.debug('change edit target from {} to {}'.format(old, new_target))
+        logger.debug('change edit target from {} to {}'
+                     .format(old, new_target))
         plot_dict = self.plot_container.plot_dict
         if self.control_view.edit == 'Mark Bad Data':
             # need to change target to 'mask' and revert 'old if needed
             if new_target != 'None':
                 # someone changed selected target from None while in Edit Mask
-                self.control_view.edit = 'Not Editing'
-                old = 'mask'
+                # normally this is not possible so probably err in program
+                logger.error('IN CHANGE_TARGET:  target changed while in ' +
+                             'Mark Bad Data mode. Investigate')
+                #self.control_view.edit = 'Not Editing'
+                #old = 'mask'
             else:
                 # get old and None with Edit Mask:  => set tgt to mask
                 # if tgt was None then old is None. Else old is last line set.
                 new_target = 'mask'
-        elif new_target == 'None' or EDIT_OFF_ON_CHANGE:
-            # this may always happens if edit is not Edit Mask
-            self.control_view.edit = 'Not Editing'
+        # elif new_target == 'None' and :
+        #     # this may always happens if edit is not Edit Mask
+        #     self.control_view.edit = 'Not Editing'
 
         # otherwise:  not edit mask and not None means tgt is new line
         # from selected_target editor.  old is whatever was there before

@@ -59,6 +59,9 @@ class SurveyDataSession(HasTraits):
     # dict stores info about each core sample for use by view
     core_info_dict = Dict
 
+    # used by location dialog box to show id and distance of current core
+    current_core = List([-1, -1])
+
     #: depth_line instances representing bottom surface of lake = current surf
     lake_depths = DelegatesTo('survey_line')
     lake_depth_choices = List
@@ -136,16 +139,7 @@ class SurveyDataSession(HasTraits):
         return s
 
     def _core_info_dict_default(self):
-        ''' make dictionary to store info for each core for ready access by
-        view.  index can be used to dynamically change the absolute depth
-        of boundaries plotted by indexing relevant depth line.
-        '''
-        cdict = {}
-        for core in self.core_samples:
-            i, p, d = self.get_nearest_point_to_core(core)
-            pos_index, position, distance_from_line = i, p, d
-            cdict[core.core_id] = (pos_index, position, distance_from_line)
-        return cdict
+        self.make_core_info_dict()
 
     #==========================================================================
     # Notifications
@@ -183,6 +177,18 @@ class SurveyDataSession(HasTraits):
     #==========================================================================
     # Helper functions
     #==========================================================================
+    def make_core_info_dict(self):
+        ''' make dictionary to store info for each core for ready access by
+        view.  index can be used to dynamically change the absolute depth
+        of boundaries plotted by indexing relevant depth line.
+        '''
+        cdict = {}
+        for core in self.core_samples:
+            i, p, d = self.get_nearest_point_to_core(core)
+            pos_index, position, distance_from_line = i, p, d
+            cdict[core.core_id] = (pos_index, position, distance_from_line)
+        self.core_info_dict = cdict
+        return cdict
 
     def initialize_mask_xy(self):
         ''' called if no mask exists to set an initial mask at all False/0'''

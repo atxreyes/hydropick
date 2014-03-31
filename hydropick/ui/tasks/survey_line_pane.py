@@ -9,7 +9,7 @@ from __future__ import absolute_import
 
 import logging
 from traits.api import (DelegatesTo, Instance, Property, Bool, Dict, List, Str,
-                        Supports)
+                        Supports, on_trait_change)
 from traitsui.api import View, Item
 from pyface.tasks.api import TraitsTaskPane
 
@@ -65,11 +65,15 @@ class SurveyLinePane(TraitsTaskPane):
         self.survey_line_view.zoom_extent()
 
     def on_zoom_box(self):
-        ''' currently not enabled from toolbar - use z key'''
+        ''' enables always on for the zoom box and disables edit'''
         action = self.task.zoom_box_action
-        logger.info("zoom_box_icon not enabled: press 'z', {},{}"
-                    .format(action, action.checked))
         self.survey_line_view.zoom_box_toggle(action)
+
+    def on_move_legend(self):
+        ''' currently not enabled from toolbar - use z key'''
+        action = self.task.move_legend_action
+        logger.info("pan disabled to move legend with right mouse")
+        self.survey_line_view.move_legend(action)
 
     def on_image_adjustment(self):
         ''' Open dialog to adjust image (B&C : task menu)'''
@@ -95,6 +99,10 @@ class SurveyLinePane(TraitsTaskPane):
         ''' Open dialog to change which plots to view (task menu)'''
         self.survey_line_view.plot_view_selection_dialog()
 
+    @on_trait_change('task.survey.core_samples_updated')
+    def replot_survey_line(self):
+        self._survey_line_changed()
+
     def _survey_line_changed(self):
         ''' handle loading of survey line view if valid line provide or else
         provide an empty view.
@@ -113,16 +121,18 @@ class SurveyLinePane(TraitsTaskPane):
                 data_session = SurveyDataSession(survey_line=self.survey_line,
                                                  algorithms=self.algorithms)
                 self.data_session_dict[self.line_name] = data_session
-            self.current_data_session = data_session
-
+            
             # load relevant core samples into survey line
             # must do this before creating survey line view
             all_samples = self.survey.core_samples
             d = CORE_DISTANCE_TOLERANCE
             near_samples = self.survey_line.nearby_core_samples(all_samples, d)
             self.survey_line.core_samples = near_samples
+            data_session.make_core_info_dict()
+            self.current_data_session = data_session
 
             # create survey line view
+            logger.debug('updating survey line view with changed survey line')
             self.survey_line_view = SurveyLineView(model=data_session)
             self.show_view = True
 

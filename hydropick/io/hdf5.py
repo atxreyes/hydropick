@@ -31,7 +31,7 @@ class HDF5Backend(object):
 
         self._write_freq_dicts(line_name, data['frequencies'])
         self._write_raw_sdi_dict(line_name, data_raw)
-        
+
         # THIS IS MOVED BACK TO SURVEYLINE LOAD UNTIL TRACE_NUM
         # ERRORS FIXED IN SDI BINARY SO THAT BAD TRACE NUM
         # ARRAYS CAN BE FIXED
@@ -62,6 +62,7 @@ class HDF5Backend(object):
                 'unexpected line file type: {}'.format(surface_number))
 
         line_data = {
+            'survey_line_name': line_name,
             'name': 'pickfile_' + line_type,
             'depth_array': pick_data['depth'],
             'index_array': pick_data['trace_number'] - 1,
@@ -185,7 +186,8 @@ class HDF5Backend(object):
         """
         with self._open_file('a') as f:
             pick_name = line_data['name']
-            pick_line_group = self._get_pick_line_group(f, line_name, line_type, pick_name)
+            pick_line_group = self._get_pick_line_group(f, line_name, 
+                                                        line_type, pick_name)
             for array_name in ['depth_array', 'index_array']:
                 array = line_data.pop(array_name)
                 self._write_array(f, pick_line_group, array_name, array)
@@ -252,9 +254,11 @@ class HDF5Backend(object):
         """returns the group for the collection of frequency data for a survey line"""
         survey_line_group = self._get_survey_line_group(f, line_name)
         try:
-            sdi_data_unseparated_group = f.getNode(survey_line_group, 'sdi_data_unseparated')
+            sdi_data_unseparated_group = f.getNode(survey_line_group,
+                                                   'sdi_data_unseparated')
         except tables.NoSuchNodeError:
-            sdi_data_unseparated_group = f.createGroup(survey_line_group, 'sdi_data_unseparated')
+            sdi_data_unseparated_group = f.createGroup(survey_line_group,
+                                                       'sdi_data_unseparated')
         return sdi_data_unseparated_group
 
     def _get_shoreline_group(self, f):
@@ -262,7 +266,8 @@ class HDF5Backend(object):
         return self._get_or_create_group(f, f.root, 'shoreline')
 
     def _get_survey_lines_group(self, f):
-        """returns the group for the collection of survey_lines - creating it if necessary"""
+        """returns the group for the collection of survey_lines
+        - creating it if necessary"""
         try:
             survey_lines_group = f.getNode('/survey_lines')
         except tables.NoSuchNodeError:

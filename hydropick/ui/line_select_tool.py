@@ -23,7 +23,10 @@ class LineSelectTool(BaseTool):
     #: make a new line the current one
     current_point = Event
 
-    def normal_left_down(self, event):
+    #: show id of line selected by this point
+    id_point = Event
+
+    def normal_right_down(self, event):
         """ Dispatch an event with clicked location """
         plot = self.component
         x = plot.index_mapper.map_data(event.x)
@@ -36,3 +39,10 @@ class LineSelectTool(BaseTool):
         x = plot.index_mapper.map_data(event.x)
         y = plot.value_mapper.map_data(event.y)
         self.current_point = (x, y)
+
+    def normal_left_down(self, event):
+        """ Dispatch an event with double-clicked location """
+        plot = self.component
+        x = plot.index_mapper.map_data(event.x)
+        y = plot.value_mapper.map_data(event.y)
+        self.id_point = (x, y)

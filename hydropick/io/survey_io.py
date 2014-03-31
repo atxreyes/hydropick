@@ -75,6 +75,15 @@ def read_pick_lines_from_hdf(h5file, line_name, line_type):
         for name, pick_line in pick_lines.iteritems()
     ])
 
+def read_one_pick_line_from_hdf(pic_name, pick_lines=None, h5file=None,
+                                line_name=None, line_type=None):
+    if pick_lines is None:
+        pick_lines = hdf5.HDF5Backend(h5file).read_picks(line_name,
+                                                         line_type)
+    pick_line = pick_lines[pic_name]
+    depth_line = DepthLine(**pick_line)
+    return depth_line
+
 def write_depth_line_to_hdf(h5file, depth_line, survey_line_name):
     d = depth_line
     data = dict(
@@ -87,7 +96,7 @@ def write_depth_line_to_hdf(h5file, depth_line, survey_line_name):
         index_array=d.index_array,
         depth_array=d.depth_array,
         edited=d.edited,
-        color=str(d.color.toTuple()),
+        color=str(d.color.toTuple()),   #so pytables can handle it
         notes=d.notes,
         locked=d.locked,
     )
