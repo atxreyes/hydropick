@@ -166,8 +166,8 @@ def import_survey(directory, with_pick_files=False):
     lake = import_lake(name, os.path.join(directory, 'ForSurvey'), hdf5_file)
 
     # read in sdi data
-    l, g = import_sdi(os.path.join(directory, 'SDI_Data'), hdf5_file)
-    survey_lines, survey_line_groups = l, g
+    lines, grps = import_sdi(os.path.join(directory, 'SDI_Data'), hdf5_file)
+    survey_lines, survey_line_groups = lines, grps
 
     # read in edits to sdi data
     if with_pick_files:

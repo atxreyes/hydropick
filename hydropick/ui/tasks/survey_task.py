@@ -346,7 +346,7 @@ class SurveyTask(Task):
         survey_directory = DirectoryDialog(message="Select survey to import:",
                                            new_directory=False)
         if survey_directory.open() == OK:
-            survey = import_survey(survey_directory.path)
+            survey = import_survey(survey_directory.path, with_pick_files=True)
             self.survey = survey
 
     def on_open(self):
@@ -365,6 +365,20 @@ class SurveyTask(Task):
 
     def on_load_pic_file(self):
         """ Saves a hydrological survey file """
+        from pyface.api import FileDialog, OK
+        from ...io.import_survey import (import_cores)
+
+        dialog = FileDialog(message="Select pic file to import:")
+        dialog.open()
+        if dialog.return_code == OK:
+            hdf5 = self.survey.hdf5_file
+            directory = dialog.directory
+            pic_file = dialog.filename
+            logger.info('loading new pic file "{}"'.format(pic_file))
+            pic_path = os.path.join(directory, pic_file)
+            pic_depth_line = import_cores(h5file=hdf5, core_file=pic_path)
+            self.survey.core_samples =  pic_depth_line
+            self.survey.core_samples_updated = True
         print self.survey
         print self.have_survey
         raise NotImplementedError
@@ -377,10 +391,10 @@ class SurveyTask(Task):
         dialog = FileDialog(message="Select corestick file to import:")
         dialog.open()
         if dialog.return_code == OK:
-            logger.info('loading new corestick file')
             hdf5 = self.survey.hdf5_file
             directory = dialog.directory
             core_file = dialog.filename
+            logger.info('loading new corestick file "{}"'.format(core_file))
             corestick_path = os.path.join(directory, core_file)
             cores = import_cores(h5file=hdf5, core_file=corestick_path)
             self.survey.core_samples = cores
