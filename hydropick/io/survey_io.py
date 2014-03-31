@@ -96,7 +96,7 @@ def write_depth_line_to_hdf(h5file, depth_line, survey_line_name):
         index_array=d.index_array,
         depth_array=d.depth_array,
         edited=d.edited,
-        color=str(d.color.toTuple()),
+        color=str(d.color.toTuple()),   #so pytables can handle it
         notes=d.notes,
         locked=d.locked,
     )

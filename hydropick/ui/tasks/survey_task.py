@@ -128,11 +128,18 @@ class SurveyTask(Task):
         menu_bar = SMenuBar(
             SMenu(
                 SGroup(
-                    TaskAction(name="Import", method='on_import', accelerator='Ctrl+I'),
+                    TaskAction(name="Import", method='on_import',
+                               accelerator='Ctrl+I'),
                     id='New', name='New'
                 ),
                 SGroup(
-                    TaskAction(name="Open", method='on_open', accelerator='Ctrl+O'),
+                    TaskAction(name="Import with Pic Files", 
+                               method='on_import_with_pic'),
+                    id='NewPic', name='NewPic'
+                ),
+                SGroup(
+                    TaskAction(name="Open", method='on_open',
+                               accelerator='Ctrl+O'),
                     id='Open', name='Open'
                 ),
                 SGroup(
@@ -141,7 +148,8 @@ class SurveyTask(Task):
                     id='LoadPic', name='Load Pic File'
                 ),
                 SGroup(
-                    TaskAction(name="Load Corestick File", method='on_load_corestick',
+                    TaskAction(name="Load Corestick File",
+                               method='on_load_corestick',
                                enabled_name='have_survey'),
                     id='LoadCore', name='Load Corestick File'
                 ),
@@ -336,6 +344,20 @@ class SurveyTask(Task):
     ###########################################################################
 
     def on_import(self):
+        """ Imports hydrological survey data """
+        from pyface.api import DirectoryDialog, OK
+        from ...io.import_survey import import_survey
+
+        # ask the user for save if needed
+        self._prompt_for_save()
+
+        survey_directory = DirectoryDialog(message="Select survey to import:",
+                                           new_directory=False)
+        if survey_directory.open() == OK:
+            survey = import_survey(survey_directory.path)
+            self.survey = survey
+
+    def on_import_with_pic(self):
         """ Imports hydrological survey data """
         from pyface.api import DirectoryDialog, OK
         from ...io.import_survey import import_survey

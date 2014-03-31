@@ -62,6 +62,7 @@ class HDF5Backend(object):
                 'unexpected line file type: {}'.format(surface_number))
 
         line_data = {
+            'survey_line_name': line_name,
             'name': 'pickfile_' + line_type,
             'depth_array': pick_data['depth'],
             'index_array': pick_data['trace_number'] - 1,
