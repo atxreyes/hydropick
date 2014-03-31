@@ -12,7 +12,7 @@ import sys
 import logging
 
 from traits.etsconfig.etsconfig import ETSConfig
-from traits.api import HasTraits, Directory, Instance, Supports, Str
+from traits.api import HasTraits, Directory, Instance, Supports
 
 class Application(HasTraits):
     """ The main Hydropick application object """

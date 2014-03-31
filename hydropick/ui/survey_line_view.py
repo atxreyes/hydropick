@@ -243,8 +243,8 @@ class SurveyLineView(ModelView):
         if self.model:
             # add the freq dependent (3@) data
             for k, img in self.model.frequencies.items():
-                y_key = k+'_y'
-                slice_key = k+'_slice'
+                y_key = k + '_y'
+                slice_key = k + '_slice'
                 kw = {k: self.model.frequencies[k],
                       y_key: self.model.y_arrays[k],
                       slice_key: np.array([]),
@@ -269,7 +269,7 @@ class SurveyLineView(ModelView):
             for line_key, depth_line in self.model.depth_dict.items():
                 x = self.model.distance_array[depth_line.index_array]
                 y = depth_line.depth_array
-                key_x, key_y = line_key + '_x',  line_key + '_y'
+                key_x, key_y = line_key + '_x', line_key + '_y'
                 kw = {key_x: x, key_y: y}
                 d.update_data(**kw)
         return d
@@ -526,7 +526,7 @@ class SurveyLineView(ModelView):
         b3 = b2 + 1
         data = np.clip(data, b2, b3)
         if invert:
-            data = 1-data
+            data = 1 - data
         self.plot_container.data.update_data({freq: data})
 
     def update_depth(self, depth):

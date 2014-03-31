@@ -301,7 +301,6 @@ class SurveyTask(Task):
         from .survey_map_pane import SurveyMapPane
         from .survey_depth_pane import SurveyDepthPane
         from .message_pane import MessagePane
-        print 'creating dock panes with survey', self.survey
         data = SurveyDataPane(survey=self.survey)
         self.on_trait_change(lambda new: setattr(data, 'survey', new), 'survey')
 
@@ -380,16 +379,10 @@ class SurveyTask(Task):
         """ Saves a hydrological survey file """
         raise NotImplementedError
 
-    def on_open(self):
-        """ Opens a hydrological survey file """
-        self._prompt_for_save()
-        raise NotImplementedError
-
     def on_load_pic_file(self):
         """ Saves a hydrological survey file """
         from pyface.api import FileDialog, OK
         from ...io.import_survey import (import_cores)
-
         dialog = FileDialog(message="Select pic file to import:")
         dialog.open()
         if dialog.return_code == OK:
@@ -401,8 +394,6 @@ class SurveyTask(Task):
             pic_depth_line = import_cores(h5file=hdf5, core_file=pic_path)
             self.survey.core_samples =  pic_depth_line
             self.survey.core_samples_updated = True
-        print self.survey
-        print self.have_survey
         raise NotImplementedError
 
     def on_load_corestick(self):
