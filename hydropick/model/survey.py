@@ -9,7 +9,7 @@ from __future__ import absolute_import
 
 import logging
 
-from traits.api import File, HasTraits, List, Str, Supports, provides
+from traits.api import File, HasTraits, List, Str, Supports, provides, Event
 
 from .i_survey import ISurvey
 from .i_lake import ILake
@@ -46,6 +46,9 @@ class Survey(HasTraits):
 
     #: The core samples taken in the survey
     core_samples = List(Supports(ICoreSample))
+
+    #: used to signal change in core samples list
+    core_samples_updated = Event
     
     #: backend hdf5 file
     hdf5_file = File

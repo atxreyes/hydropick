@@ -43,18 +43,22 @@ def get_number_of_bin_files(path):
     return len(file_names)
 
 
-def import_cores(directory, h5file):
+def import_cores(directory=None, h5file=None, core_file=None):
     from ..model.core_sample import CoreSample
-
-    try:
+    if core_file:
+        survey_io.import_core_samples_from_file(core_file, h5file)
         core_dicts = survey_io.read_core_samples_from_hdf(h5file)
-    except (IOError, tables.exceptions.NoSuchNodeError):
-        for filename in os.listdir(directory):
-            if os.path.splitext(filename)[1] == '.txt':
-                corestick_file = os.path.join(directory, filename)
-                survey_io.import_core_samples_from_file(corestick_file, h5file)
-
-        core_dicts = survey_io.read_core_samples_from_hdf(h5file)
+    else:
+        try:
+            core_dicts = survey_io.read_core_samples_from_hdf(h5file)
+        except (IOError, tables.exceptions.NoSuchNodeError):
+            for filename in os.listdir(directory):
+                if os.path.splitext(filename)[1] == '.txt':
+                    logger.debug('found corestick file {}'
+                                 .format(filename))
+                    corestick_file = os.path.join(directory, filename)
+                    survey_io.import_core_samples_from_file(corestick_file, h5file)
+            core_dicts = survey_io.read_core_samples_from_hdf(h5file)
 
     # this is a corestick file
     return [

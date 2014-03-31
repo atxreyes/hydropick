@@ -213,6 +213,8 @@ class SurveyMapView(ModelView):
     #: The Chaco plot object
     plot = Instance(Plot)
 
+    core_plots = List([])
+
     def _plot_default(self):
         plotdata = ArrayPlotData()
         plot = MapPlot(plotdata,
@@ -255,16 +257,9 @@ class SurveyMapView(ModelView):
                                                 color=self.line_color,
                                                 line_width=PENDING_LINE_WIDTH,
                                                 line_style=PENDING_LINE_STYLE)
-        for core in self.model.core_samples:
-            x, y = core.location
-            scatterplot = ScatterPlot(index=ArrayDataSource([x]),
-                                       value=ArrayDataSource([y]),
-                                       marker='circle',
-                                       color=self.core_color,
-                                       outline_color=self.core_color,
-                                       index_mapper=index_mapper,
-                                       value_mapper=value_mapper)
-            plot.add(scatterplot)
+        # add cores to plot
+        self.update_core_plots(plot)
+
         self._set_line_colors()
         if self.model.lake is not None:
             x_min, y_min, x_max, y_max = self.model.lake.shoreline.bounds
@@ -292,6 +287,34 @@ class SurveyMapView(ModelView):
         self.text_overlay = line_name_text
         return plot
 
+    @on_trait_change('model.core_samples_updated')
+    def _update_core_plots(self):
+        if isinstance(self.plot, MapPlot):
+            self.update_core_plots()
+
+    def update_core_plots(self, plot=None):
+        """ assuming core samples changed this removes all old plots and
+        updates map with current set from survey."""
+        logger.info('updating core plots')
+        if plot is None:
+            plot = self.plot
+        for core_plot in self.core_plots:
+            plot.components.remove(core_plot)
+        self.core_plots = []
+        for core in self.model.core_samples:
+            index_mapper = LinearMapper(range=plot.index_range)
+            value_mapper = LinearMapper(range=plot.value_range)
+            x, y = core.location
+            scatterplot = ScatterPlot(index=ArrayDataSource([x]),
+                                       value=ArrayDataSource([y]),
+                                       marker='circle',
+                                       color=self.core_color,
+                                       outline_color=self.core_color,
+                                       index_mapper=index_mapper,
+                                       value_mapper=value_mapper)
+            self.core_plots.append(scatterplot)
+            plot.add(scatterplot)
+    
     def select_point(self, event):
         ''' single rt  click in map toggles line selection status in selected lines
         '''

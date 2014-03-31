@@ -469,6 +469,10 @@ class SurveyLineView(ModelView):
         self.plot_container.show_intensity_profiles = show_profile
         self.plot_container.set_intensity_profile_visibility(show_profile)
 
+    @on_trait_change('model.current_core')
+    def update_core_info(self):
+        pass
+
     def update_locations(self, image_index):
         ''' Called by location_tool to update display readouts as mouse moves
         '''
@@ -483,6 +487,8 @@ class SurveyLineView(ModelView):
         dv.northing = north
         dv.power = power
         dv.gain = gain
+        dv.core_id = self.model.current_core[0]
+        dv.core_distance = self.model.current_core[1]
 
     def adjust_image(self, obj, name, old, new):
         ''' Given a tuple (contrast, brightness) with values

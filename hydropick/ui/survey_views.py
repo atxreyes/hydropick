@@ -704,8 +704,10 @@ class PlotContainer(HasTraits):
                     try:
                         if np.abs(x_pos - loc) < CORE_VISIBILITY_CRITERIA:
                             core_plot.visible = True
+                            self.model.current_core = [core.core_id, dist]
                         else:
                             core_plot.visible = False
+                            self.model.current_core = [-1, -1]
                     except ValueError:
                         debug = 'core dist check xpos,loc,abs(x-l)\n={},{},{}'
                         absdiff = np.abs(x_pos - loc)
@@ -957,6 +959,10 @@ class DataView(HasTraits):
     power = CFloat(0)
     gain = CFloat(0)
 
+    # id and distance of current core shown in slice view
+    core_id = CFloat(-1)
+    core_distance = CFloat(-1)
+
     traits_view = View(
         Item('latitude'),
         Item('longitude'),
@@ -968,6 +974,9 @@ class DataView(HasTraits):
         Item('_'),
         Item('power'),
         Item('gain'),
+        Item('_'),
+        Item('core_id'),
+        Item('core_distance'),
         resizable=True
     )
 

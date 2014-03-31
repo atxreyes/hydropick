@@ -7,6 +7,7 @@
 
 from __future__ import absolute_import
 
+import os
 import logging
 
 from traits.api import (Bool, Property, Supports, List, on_trait_change, Dict,
@@ -163,6 +164,7 @@ class SurveyTask(Task):
                 SGroup(
                     TaskCommandAction(name='New Group', method='on_new_group',
                                       accelerator='Ctrl+Shift+N',
+                                      enabled_name='have_survey',
                                       command_stack_name='command_stack'),
                     TaskCommandAction(name='Delete Group',
                                       method='on_delete_group',
@@ -369,7 +371,20 @@ class SurveyTask(Task):
 
     def on_load_corestick(self):
         """ Saves a hydrological survey file in a different location """
-        raise NotImplementedError
+        from pyface.api import FileDialog, OK
+        from ...io.import_survey import (import_cores)
+
+        dialog = FileDialog(message="Select corestick file to import:")
+        dialog.open()
+        if dialog.return_code == OK:
+            logger.info('loading new corestick file')
+            hdf5 = self.survey.hdf5_file
+            directory = dialog.directory
+            core_file = dialog.filename
+            corestick_path = os.path.join(directory, core_file)
+            cores = import_cores(h5file=hdf5, core_file=corestick_path)
+            self.survey.core_samples = cores
+            self.survey.core_samples_updated = True
 
     def on_new_group(self):
         """ Adds a new survey line group to a survey """
