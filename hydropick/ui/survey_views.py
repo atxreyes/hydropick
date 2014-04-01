@@ -390,6 +390,7 @@ class PlotContainer(HasTraits):
             self.zoom_tools[key] = zoom
             main.value_mapper.on_trait_change(self.zoom_all_value, 'updated')
             main.index_mapper.on_trait_change(self.zoom_all_index, 'updated')
+            
             # add line inspector and attach to freeze tool
             #*********************************************
             line_inspector = LineInspector(component=img_plot,
@@ -400,6 +401,7 @@ class PlotContainer(HasTraits):
                                            metadata_name='x_slice',
                                            is_listener=True,
                                            color="white")
+
             img_plot.overlays.append(line_inspector)
             self.inspector_freeze_tool.tool_set.add(line_inspector)
 
