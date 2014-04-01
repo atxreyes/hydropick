@@ -127,7 +127,8 @@ class SurveyDataSession(HasTraits):
     # dictionary of algorithms filled by the pane when new survey line selected
     algorithms = Dict
 
-    ref_depth_line_name = Str('')
+    # choices for core reference depth (any lake depth or 'final lake depth')
+    core_reference_choices = Property(depends_on=['depth_lines_updated'])
 
     #==========================================================================
     # Defaults
@@ -230,24 +231,13 @@ class SurveyDataSession(HasTraits):
         distance_from_line = np.sqrt(dist_sq_array.min())
         return loc_index, core_location, distance_from_line
 
-    def get_ref_depth_line(self):
-        ''' works to get a valid lake depth line as a reference for core depths
-        '''
-        try:
-            ref_line = self.lake_depths[self.ref_depth_line_name]
-        except KeyError:
-            try:
-                ref_line = self.lake_depths[self.final_lake_depth]
-            except KeyError:
-                try:
-                    self.ref_depth_line_name = 'current_surface_from_bin'
-                    ref_line = self.lake_depths[self.ref_depth_line_name]
-                except KeyError:
-                    logger.error('cannot find a ref lake depth for core plot')
-        return ref_line or None
     #==========================================================================
     # Get/Set
     #==========================================================================
+
+    def _get_core_reference_choices(self):
+        logger.debug('updating core ref choices')
+        return ['Final Lake Depth'] + self.lake_depths.keys()
 
     def _get_freq_choices(self):
         ''' Get list of available frequencies sorted lowest to highest

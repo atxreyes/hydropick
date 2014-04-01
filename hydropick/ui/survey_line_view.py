@@ -305,6 +305,16 @@ class SurveyLineView(ModelView):
     def update_trace_tools(self):
         self.set_trace_tools_mask_edit()
 
+    @on_trait_change('model.survey_line.core_depth_reference_str')
+    def update_core_plots(self, new):
+        logger.debug('updating core ref to {}'
+                     .format(self.model.survey_line.core_depth_reference.name))
+        self.plot_container.update_core_plots()
+        if self.model.survey_line.core_depth_reference_str == 'Final Lake Depth':
+            self.model.survey_line.on_trait_change(self.plot_container.update_core_plots, 'final_lake_depth')
+        else:
+            self.model.survey_line.on_trait_change(self.plot_container.update_core_plots, 'final_lake_depth', remove=True)
+
     def set_trace_tools_mask_edit(self):
         ''' this should always correspond to control view mode'''
         mode = self.control_view.mark_bad_data_mode

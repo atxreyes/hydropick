@@ -249,7 +249,7 @@ class PlotContainer(HasTraits):
 
     def reset_all(self):
         for k, hpc in self.hplot_dict.items():
-            if k is not 'mini':
+            if k != 'mini':
                 profile = hpc.components[1]
                 main = hpc.components[0]
                 profile.visible = False
@@ -258,7 +258,7 @@ class PlotContainer(HasTraits):
                 hpc.invalidate_and_redraw()
 
         for k, hpc in self.hplot_dict.items():
-            if k is not 'mini':
+            if k != 'mini':
                 profile = hpc.components[1]
                 main = hpc.components[0]
                 if k in self.selected_hplots:
@@ -353,12 +353,10 @@ class PlotContainer(HasTraits):
         #************************************************************
         # save pos and distance in session dict for view info and control
         for core in self.model.core_samples:
-            loc_index, loc, dist = self.model.core_info_dict[core.core_id]
             # add boundarys to slice plot
-            ref_line = self.model.final_lake_depth
-            self.plot_core_depths(slice_plot, core, ref_line, loc_index)
+            self.plot_core_depths(slice_plot, core, ref_depth_line=None)
             # add positions to main plots
-            self.plot_core(main, core, ref_line, loc_index, loc)
+            self.plot_core(main, core, ref_depth_line=None)
 
         # now add tools depending if it is a mini plot or not
         #************************************************************
@@ -621,14 +619,14 @@ class PlotContainer(HasTraits):
             #adjust index range for main plots
             low, high = event
             for key, hpc in self.hplot_dict.items():
-                if key is not 'mini':
+                if key != 'mini':
                     this_plot = hpc.components[0]
                     this_plot.index_range.low = low
                     this_plot.index_range.high = high
         else:
             # reset range back to full/auto for main plots
             for key, hpc in self.hplot_dict.items():
-                if key is not 'mini':
+                if key != 'mini':
                     this_plot = hpc.components[0]
                     this_plot.index_range.set_bounds("auto", "auto")
 
@@ -641,7 +639,7 @@ class PlotContainer(HasTraits):
         selected_meta = obj.metadata
         slice_meta = selected_meta.get("x_slice", None)
         for key, hplot in self.hplot_dict.items():
-            if key is not 'mini':
+            if key != 'mini':
                 self.update_hplot_slice(key, hplot, slice_meta)
 
     def update_hplot_slice(self, key, hplot, slice_meta):
@@ -716,8 +714,26 @@ class PlotContainer(HasTraits):
         else:   # clear all slice plots
             self.data.update_data({slice_key: np.array([])})
 
-    def plot_core(self, main, core, ref_line, loc_index, loc):
+    def update_core_plots(self):
+        for core in self.model.core_samples:
+            old_core_layer_plots = self.core_plots_dict.pop(core.core_id)
+            for key, hplot in self.hplot_dict.items():
+                main = hplot.components[0]
+                slice = hplot.components[1]
+                self.plot_core(main, core, ref_depth_line=None)
+                # since we are replotting all of the slice plot core layers
+                # remove all existing plots from all slices
+                # (stored in core_plot_dict)
+                for old_plot in old_core_layer_plots:
+                    if old_plot in slice.components:
+                        slice.components.remove(old_plot)
+                if key != 'mini':
+                    self.plot_core_depths(slice, core, ref_depth_line=None)
+
+    def plot_core(self, main, core, ref_depth_line=None):
         ''' plot core info on main plot'''
+        logger.debug('replotting main cores')
+        loc_index, loc, dist = self.model.core_info_dict[core.core_id]
         # first plot vertical line
         y_range = main.value_range
         ys = np.array([y_range.low, y_range.high])
@@ -728,12 +744,13 @@ class PlotContainer(HasTraits):
         line.index_range = main.index_range
         main.add(line)
         # then plot boundary layers as dots on line
-        layer_depths = core.layer_boundaries
-        ref_depth_line = self.model.get_ref_depth_line()
+        if ref_depth_line is None:
+            ref_depth_line = self.model.survey_line.core_depth_reference
         if ref_depth_line:
             ref_depth = ref_depth_line.depth_array[loc_index]
         else:
             ref_depth = 0
+        layer_depths = core.layer_boundaries
         ys = ref_depth + layer_depths
         xs = ys * 0 + loc
         scatter = create_scatter_plot((xs, ys), color='darkgreen',
@@ -742,15 +759,22 @@ class PlotContainer(HasTraits):
         scatter.origin = 'top left'
         scatter.value_range = main.value_range
         scatter.index_range = main.index_range
+        old_scatter = main.plots.get('core_plot', [])
+        if old_scatter:
+            main.components.remove(old_scatter[0])
         main.add(scatter)
+        main.plots['core_plot'] = [scatter]
 
-    def plot_core_depths(self, slice_plot, core, ref_line, loc_index):
+    def plot_core_depths(self, slice_plot, core, ref_depth_line=None):
         ''' plot a set of core depths to the given slice plot
         set to not visible by default but then show when within
         show_core_range'''
+        logger.debug('replotting slice cores')
         x_range = slice_plot.index_range
         xs = np.array([x_range.low, x_range.high])
-        ref_depth_line = self.model.get_ref_depth_line()
+        loc_index, loc, dist = self.model.core_info_dict[core.core_id]
+        if ref_depth_line is None:
+            ref_depth_line = self.model.survey_line.core_depth_reference
         if ref_depth_line:
             ref_depth = ref_depth_line.depth_array[loc_index]
         else:
@@ -764,6 +788,24 @@ class PlotContainer(HasTraits):
             line.value_range = slice_plot.index_range
             self.core_plots_dict.setdefault(core.core_id, []).append(line)
             slice_plot.add(line)
+
+            # for i, boundary in enumerate(core.layer_boundaries):
+            # core_layer_name = 'core_layer_{}'.format(i)
+            # old_line = slice_plot.plots.get(core_layer_name, None)
+
+            # if old_line:
+            #     print old_line in slice_plot.components
+            #     slice_plot.del_plot(core_layer_name)
+
+            # print old_line in slice_plot.components, core_layer_name, slice_plot.plots.has_key(core_layer_name)
+            # ys = xs * 0 + (ref_depth + boundary)
+            # line = create_line_plot((xs, ys), orientation='h',
+            #                         color='lightgreen', width=CORE_LINE_WIDTH)
+            # line.origin = 'top left'
+            # line.value_range = slice_plot.index_range
+            # self.core_plots_dict.setdefault(core.core_id, []).append(line)
+            # slice_plot.add(line)
+            # slice_plot.plots[core_layer_name] = line
 
     def _img_colormap_changed(self):
         ''' updates colormap in images when img_colormap changes'''
@@ -832,8 +874,9 @@ class ControlView(HasTraits):
                 Item('object.model.final_lake_depth',
                      editor=EnumEditor(name='object.model.lake_depth_choices')),
                 Item('object.model.final_preimpoundment_depth',
-                     editor=EnumEditor(name='object.model.preimpoundment_depth_choices')
-                    )
+                     editor=EnumEditor(name='object.model.preimpoundment_depth_choices')),
+                Item('object.model.survey_line.core_depth_reference_str',
+                     editor=EnumEditor(name='object.model.core_reference_choices'))
             )
         ),
         resizable=True
