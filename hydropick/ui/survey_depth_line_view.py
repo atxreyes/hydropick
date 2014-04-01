@@ -240,16 +240,22 @@ class DepthLineView(HasStrictTraits):
         alg_name = self.source_name
         logger.debug('configuring alg: {}. Alg exists={}, model args={}'
                      .format(alg_name, self.current_algorithm, self.model.args))
-        if self.current_algorithm is None:
+        alg_exists = alg_name in self.algorithms.keys()
+        if not alg_exists:
+            self.log_problem('valid algorithm not chosen')
+        if self.current_algorithm is None and self.no_problem:
             self.set_current_algorithm(alg_name=alg_name)
-        view = AlgorithmPresenter(algorithm=self.current_algorithm)
-        # now edit alg args.
-        view.configure_traits()
-        # this needs to be reset to apply changes even though same object
-        self.current_algorithm = view.algorithm
-        if self.current_algorithm:
-            logger.debug('configured alg: {} with args={}'
-                         .format(alg_name, self.alg_arg_dict))
+        if self.no_problem:
+            view = AlgorithmPresenter(algorithm=self.current_algorithm)
+            # now edit alg args.
+            view.configure_traits()
+            # this needs to be reset to apply changes even though same object
+            self.current_algorithm = view.algorithm
+            if self.current_algorithm:
+                logger.debug('configured alg: {} with args={}'
+                             .format(alg_name, self.alg_arg_dict))
+        else:
+            self.no_problem = True
 
     def update_model_args(self):
         ''' current algorithm or its arguments have changed
@@ -573,7 +579,7 @@ class DepthLineView(HasStrictTraits):
             survey_line.preimpoundment_depths[model.name] = model
             survey_line.final_preimpoundment_depth = model.name
             key = 'PRE_' + model.name
-        
+
         # if model being saved is model being edited, update editor panes
         if model is self.model:
             # set form to the new line
@@ -673,10 +679,10 @@ class DepthLineView(HasStrictTraits):
             self.log_problem(s)
 
     def validate_name(self, model):
-        ''' Validation here just means it exist after any whitespace is
+        """ Validation here just means it exist after any whitespace is
         stripped off it.
         Sets problem flag if name can't be validated
-        '''
+        """
         valid_name = model.name.strip()
         if valid_name == '':
             self.log_problem('depth line has no printable name')
@@ -710,11 +716,11 @@ class DepthLineView(HasStrictTraits):
         return existing_line
 
     def check_alg_ready(self, model=None):
-        ''' check algorithm is selected and configured and args match model.
+        """ check algorithm is selected and configured and args match model.
         If args don't match model, probably configure alg was not run, or
         alg name was changed and current_alg reset.
         Sets problem flag if not ready to run
-        '''
+        """
         if model is None:
             model = self.model
 
@@ -745,10 +751,10 @@ class DepthLineView(HasStrictTraits):
                              'Need to configure algorithm')
 
     def check_args(self, model):
-        ''' checks that arguments match the model. run after apply but
+        """ checks that arguments match the model. run after apply but
         before allowing apply to complete.  Run by check_alg_ready.
         Sets problem flag if args don't match
-        '''
+        """
         alg = self.current_algorithm
         logger.debug('checking args for alg {} with args {}'
                      .format(alg.name, self.alg_arg_dict))
@@ -811,7 +817,8 @@ class DepthLineView(HasStrictTraits):
 
     def set_alg_args(self, model_args):
         ''' if possible, sets default arguments for current algorithm configure
-        dialog according to model.args dict. Otherwise warns user and continues'''
+        dialog according to model.args dict. Otherwise warns user and continues
+        '''
         alg = self.current_algorithm
         logger.debug('set arg defaults to model: args={}'.format(model_args))
         default = self.alg_arg_dict
