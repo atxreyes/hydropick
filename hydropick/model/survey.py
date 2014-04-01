@@ -19,6 +19,7 @@ from .i_core_sample import ICoreSample
 
 logger = logging.getLogger(__name__)
 
+
 @provides(ISurvey)
 class Survey(HasTraits):
     """ The a basic implementation of the ISurvey interface
@@ -27,8 +28,6 @@ class Survey(HasTraits):
     user-assigned line groups.
 
     """
-    # XXX there should probably be some other survey metadata saved in this object
-
     #: The name of the survey
     name = Str
 
@@ -49,25 +48,21 @@ class Survey(HasTraits):
 
     #: used to signal change in core samples list
     core_samples_updated = Event
-    
+
     #: backend hdf5 file
     hdf5_file = File
 
     def add_survey_line_group(self, group):
         """ Create a new line group, optionally with a set of lines """
         self.survey_line_groups.append(group)
+        self.save_to_disk()
         logger.debug("Added survey line group '{}'".format(group.name))
 
     def insert_survey_line_group(self, index, group):
         """ Create a new line group, optionally with a set of lines """
         self.survey_line_groups.insert(index, group)
-        logger.debug("Inserted survey line group '{}' at index {}".format(
-            group.name, index))
 
-    def delete_survey_line_group(self, group):
-        """ Delete a line group, returning its index """
-        index = self.survey_line_groups.index(group)
-        self.survey_line_groups.remove(group)
-        logger.debug("Removed survey line group '{}' from index {}".format(
-            group.name, index))
-        return index
+    def save_to_disk(self):
+        ''' it was decided all changes should be immediately saved so
+        this is provide to eaily do that'''
+        logger.debug('this would save to disk if it could')

@@ -14,7 +14,7 @@ from traits.api import (Bool, Property, Supports, List, on_trait_change, Dict,
                         Str, Instance)
 
 from pyface.api import ImageResource
-from pyface.tasks.api import Task, TaskLayout, PaneItem, VSplitter, HSplitter
+from pyface.tasks.api import Task, TaskLayout, PaneItem, VSplitter
 from pyface.tasks.action.api import DockPaneToggleGroup, SMenuBar, SMenu, \
     SGroup, SToolBar, TaskAction, CentralPaneAction
 from apptools.undo.i_undo_manager import IUndoManager
@@ -22,7 +22,6 @@ from apptools.undo.i_command_stack import ICommandStack
 
 from ...model.i_survey import ISurvey
 from ...model.i_survey_line import ISurveyLine
-from ...model.survey_line import SurveyLine
 from ...model.i_survey_line_group import ISurveyLineGroup
 from ...model import algorithms
 from ...ui.survey_data_session import SurveyDataSession
@@ -30,6 +29,7 @@ from ...ui.survey_data_session import SurveyDataSession
 from .task_command_action import TaskCommandAction
 
 logger = logging.getLogger(__name__)
+
 
 class SurveyTask(Task):
     """ A task for viewing and editing hydrological survey data """
@@ -50,7 +50,7 @@ class SurveyTask(Task):
     current_survey_line_group = Supports(ISurveyLineGroup)
 
     #: the currently active survey line that we are viewing
-    current_survey_line = Supports(ISurveyLine)# Instance(SurveyLine)#
+    current_survey_line = Supports(ISurveyLine)
 
     # data object for maninpulating data for survey view and depth lines
     current_data_session = Instance(SurveyDataSession)
@@ -91,11 +91,16 @@ class SurveyTask(Task):
     # refernce to this action so that the checked trait can be easily monitored
     move_legend_action = Instance(CentralPaneAction)
 
+    # used to hold history of logging messages to display in message pane
     msg_string = Str
+
+    # used to set some actions as always disabled (avoid not implemented)
+    _not_enable = Bool(False)
 
     ###########################################################################
     # 'Task' interface.
     ###########################################################################
+
     def _zoom_box_action_default(self):
         ''' need to make this a trait to have access to action.checked state
         '''
@@ -133,13 +138,14 @@ class SurveyTask(Task):
                     id='New', name='New'
                 ),
                 SGroup(
-                    TaskAction(name="Import with Pic Files", 
+                    TaskAction(name="Import with Pic Files",
                                method='on_import_with_pic'),
                     id='NewPic', name='NewPic'
                 ),
                 SGroup(
                     TaskAction(name="Open", method='on_open',
-                               accelerator='Ctrl+O'),
+                               accelerator='Ctrl+O',
+                               enabled_name='not_enabled'),
                     id='Open', name='Open'
                 ),
                 SGroup(
@@ -154,10 +160,13 @@ class SurveyTask(Task):
                     id='LoadCore', name='Load Corestick File'
                 ),
                 SGroup(
-                    TaskAction(name="Save", method='on_save', accelerator='Ctrl+S',
+                    TaskAction(name="Save", method='on_save',
+                               accelerator='Ctrl+S',
                                enabled_name='dirty'),
                     TaskAction(name="Save As...", method='on_save_as',
-                               accelerator='Ctrl+Shift+S', enabled_name='have_survey'),
+                               accelerator='Ctrl+Shift+S',
+                               #enabled_name='have_survey', #### currently not used
+                               enabled_name='not_enabled'),
                     id='Save', name='Save'
                 ),
                 id='File', name="&File",
@@ -165,8 +174,10 @@ class SurveyTask(Task):
             SMenu(
                 # XXX can't integrate easily with TraitsUI editors :P
                 SGroup(
-                    UndoAction(undo_manager=self.undo_manager, accelerator='Ctrl+Z'),
-                    RedoAction(undo_manager=self.undo_manager, accelerator='Ctrl+Shift+Z'),
+                    UndoAction(undo_manager=self.undo_manager,
+                               accelerator='Ctrl+Z'),
+                    RedoAction(undo_manager=self.undo_manager,
+                               accelerator='Ctrl+Shift+Z'),
                     id='UndoGroup', name="Undo Group",
                 ),
                 SGroup(
@@ -193,20 +204,20 @@ class SurveyTask(Task):
                                enabled_name='survey.survey_lines',
                                accelerator='Ctrl+Right'),
                     TaskCommandAction(name='Previous Line',
-                               method='on_previous_line',
-                               enabled_name='survey.survey_lines',
-                               accelerator='Ctrl+Left'),
+                                      method='on_previous_line',
+                                      enabled_name='survey.survey_lines',
+                                      accelerator='Ctrl+Left'),
                     id='LineGroup', name='Line Group',
                 ),
                 SGroup(
                     CentralPaneAction(name='Location Data',
-                               method='on_show_location_data',
-                               enabled_name='show_view',
-                               accelerator='Ctrl+Shift+D'),
+                                      method='on_show_location_data',
+                                      enabled_name='show_view',
+                                      accelerator='Ctrl+Shift+D'),
                     CentralPaneAction(name='Plot View Selection',
-                               method='on_show_plot_view_selection',
-                               enabled_name='show_view',
-                               accelerator='Ctrl+Shift+S'),
+                                      method='on_show_plot_view_selection',
+                                      enabled_name='show_view',
+                                      accelerator='Ctrl+Shift+S'),
                     id='DataGroup', name='Data Group',
                 ),
                 DockPaneToggleGroup(),
@@ -215,19 +226,20 @@ class SurveyTask(Task):
             SMenu(
                 SGroup(
                     CentralPaneAction(name='Image Adjustment',
-                               method='on_image_adjustment',
-                               enabled_name='show_view',
-                               accelerator='Ctrl+Shift+I'),
+                                      method='on_image_adjustment',
+                                      enabled_name='show_view',
+                                      accelerator='Ctrl+Shift+I'),
                     CentralPaneAction(name='Change Colormap',
-                               method='on_change_colormap',
-                               enabled_name='show_view'),
+                                      method='on_change_colormap',
+                                      enabled_name='show_view'),
                     CentralPaneAction(name='Survey Line Settings',
-                               method='on_change_settings',
-                               enabled_name='show_view'),
+                                      method='on_change_settings',
+                                      enabled_name='show_view'),
                     CentralPaneAction(name='Cursor Freeze Key = Alt+c',
-                               method='on_cursor_freeze',
-                               enabled_name='show_view'),
-                    CentralPaneAction(name='Box zoom enable = z'),
+                                      method='on_cursor_freeze',
+                                      enabled_name='show_view'),
+                    CentralPaneAction(name='Box zoom enable = z',
+                                      enabled_name='not_enabled'),
                     id='ToolGroup', name='Tool Group',
                 ),
                 id='Tools', name="&Tools",
@@ -241,7 +253,8 @@ class SurveyTask(Task):
                 TaskAction(name="Import", method='on_import',
                            image=ImageResource('import')),
                 TaskAction(name="Open", method='on_open',
-                           image=ImageResource('survey')),
+                           image=ImageResource('survey'),
+                           enabled_name='not_enabled'),
                 TaskAction(name="Save", method='on_save',
                            enabled_name='dirty',
                            image=ImageResource('save')),
@@ -272,7 +285,7 @@ class SurveyTask(Task):
                                   enabled_name='show_view'),
                 self.zoom_box_action,
                 CentralPaneAction(name='Zoom Box Once (press "z")',
-                                  enabled_name=''),
+                                  enabled_name='not_enabled'),
                 id='Survey', name="Survey", show_tool_names=False,
                 image_size=(24, 24)
             ),
@@ -302,11 +315,11 @@ class SurveyTask(Task):
         from .survey_depth_pane import SurveyDepthPane
         from .message_pane import MessagePane
         data = SurveyDataPane(survey=self.survey)
-        self.on_trait_change(lambda new: setattr(data, 'survey', new), 'survey')
-
+        self.on_trait_change(lambda new: setattr(data, 'survey', new),
+                             'survey')
         map_pane = SurveyMapPane(survey=self.survey)
-        self.on_trait_change(lambda new: setattr(map_pane, 'survey', new), 'survey')
-
+        self.on_trait_change(lambda new: setattr(map_pane, 'survey', new),
+                             'survey')
         depth = SurveyDepthPane()
         message = MessagePane()
 
@@ -372,7 +385,7 @@ class SurveyTask(Task):
 
     def on_open(self):
         """ Opens a hydrological survey file """
-        self._prompt_for_save()
+        #self._prompt_for_save()
         raise NotImplementedError
 
     def on_save(self):
@@ -392,7 +405,7 @@ class SurveyTask(Task):
             logger.info('loading new pic file "{}"'.format(pic_file))
             pic_path = os.path.join(directory, pic_file)
             pic_depth_line = import_cores(h5file=hdf5, core_file=pic_path)
-            self.survey.core_samples =  pic_depth_line
+            self.survey.core_samples = pic_depth_line
             self.survey.core_samples_updated = True
         raise NotImplementedError
 
@@ -424,7 +437,7 @@ class SurveyTask(Task):
         return command
 
     def on_replace_group(self):
-        """ Adds all selected lines to group: 
+        """ Adds all selected lines to group:
         easy way to add individual lines to group
         """
         group = self.current_survey_line_group
@@ -432,7 +445,6 @@ class SurveyTask(Task):
 
     def on_delete_group(self):
         """ Deletes a survey line group from a survey """
-        from ...model.survey_line_group import SurveyLineGroup
         from ...model.survey_commands import DeleteSurveyLineGroup
 
         group = self.current_survey_line_group
@@ -457,7 +469,7 @@ class SurveyTask(Task):
         return self.current_survey_line_group is not None
 
     def _get_have_survey(self):
-        ''' currently treating new survey like None since we do not have 
+        ''' currently treating new survey like None since we do not have
         a concept of creating a survey from scratch.
         '''
         return self.survey.name != 'New Survey'
