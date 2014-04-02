@@ -55,8 +55,10 @@ class HDF5Backend(object):
         surface_number = pick_data['surface_number']
         if surface_number == 1:
             line_type = 'current'
+            type_label = 'current surface'
         elif surface_number == 2:
             line_type = 'preimpoundment'
+            type_label = 'pre-impoundment surface'
         else:
             raise NotImplementedError(
                 'unexpected line file type: {}'.format(surface_number))
@@ -64,11 +66,12 @@ class HDF5Backend(object):
         line_data = {
             'survey_line_name': line_name,
             'name': 'pickfile_' + line_type,
+            'line_type': type_label,
             'depth_array': pick_data['depth'],
             'index_array': pick_data['trace_number'] - 1,
             'edited': False,
             'source': 'previous depth line',
-            'source_name': pick_file,
+            'source_name': os.path.basename(pick_file),
         }
 
         self.write_pick(line_data, line_name, line_type)
@@ -186,7 +189,7 @@ class HDF5Backend(object):
         """
         with self._open_file('a') as f:
             pick_name = line_data['name']
-            pick_line_group = self._get_pick_line_group(f, line_name, 
+            pick_line_group = self._get_pick_line_group(f, line_name,
                                                         line_type, pick_name)
             for array_name in ['depth_array', 'index_array']:
                 array = line_data.pop(array_name)

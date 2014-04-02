@@ -151,6 +151,9 @@ class DepthLineView(HasStrictTraits):
     # currently selected group (#### DEPRECATED - LEAVE IN JUST IN CASE)
     current_survey_line_group = Supports(ISurveyLineGroup)
 
+    # used to stop loop user wants
+    stop = Bool(False)
+
     #==========================================================================
     # Define Views
     #==========================================================================
@@ -431,6 +434,9 @@ class DepthLineView(HasStrictTraits):
                 else:
                     # continue with remaining lines
                     self.no_problem = True
+                if self.stop:
+                    break
+            self.stop = False
         else:
             # there was a problem.  User should correct based on messages
             # and retry.  Reset no problem flag so user can continue.
@@ -533,8 +539,11 @@ class DepthLineView(HasStrictTraits):
         '''
         if model is None:
             model = self.model
+        if survey_line is None:
+            survey_line = self.data_session.survey_line
 
-        logger.debug('updating array data on {}'.format(model.name))
+        logger.debug('updating array data on {} for survey line {}'
+                     .format(model.name, survey_line.name))
 
         if model.source == 'algorithm':
             self.check_alg_ready()
@@ -554,7 +563,7 @@ class DepthLineView(HasStrictTraits):
 
         if self.no_problem:
             # check arrays are filled and equal
-            self.check_arrays()
+            self.check_arrays(depth_line=model)
 
         if self.no_problem:
             # line data reset by update so any edits are lost.
@@ -615,7 +624,7 @@ class DepthLineView(HasStrictTraits):
             survey_line = self.data_session.survey_line
         # log attempt
         alg_name = model.source_name
-        logger.debug('applying algorithm : {} to line {}'
+        logger.debug('applying algorithm : "{}" to line {}'
                      .format(alg_name, survey_line.name))
         algorithm = self.current_algorithm
         try:
@@ -673,9 +682,10 @@ class DepthLineView(HasStrictTraits):
         no_depth_array = d_array_size == 0
         no_index_array = i_array_size == 0
         depth_notequal_index = d_array_size != i_array_size
-        name = self.survey_line_name
+        name = depth_line.survey_line_name
         if no_depth_array or no_index_array or depth_notequal_index:
-            s = 'data arrays sizes are 0 or not equal for {}'.format(name)
+            s = ('data arrays sizes are {}, {} or not equal for {}'
+                 .format(i_array_size, d_array_size, name))
             self.log_problem(s)
 
     def validate_name(self, model):
@@ -770,6 +780,7 @@ class DepthLineView(HasStrictTraits):
     def message(self, msg='my message'):
         dialog = MsgView(msg=msg)
         dialog.configure_traits()
+        self.stop = dialog.stop
 
     def log_problem(self, msg):
         ''' if there is a problem with any part of creating/updating a line,
@@ -799,16 +810,16 @@ class DepthLineView(HasStrictTraits):
                'args = {args}'
                ]
         s1 = '\n'.join(s1a)
-        s = s0 + s1.format(lines=lines_str,
-                           name=model.name,
-                           ltype=model.line_type,
-                           color=model.color,
-                           locked=model.locked,
-                           notes=model.notes,
-                           edited=model.edited,
-                           source=model.source,
-                           sourcename=model.source_name,
-                           args=model.args)
+        s = (s0 + s1).format(lines=lines_str,
+                             name=model.name,
+                             ltype=model.line_type,
+                             color=model.color,
+                             locked=model.locked,
+                             notes=model.notes,
+                             edited=model.edited,
+                             source=model.source,
+                             sourcename=model.source_name,
+                             args=model.args)
         logger.info(s)
 
     #==========================================================================

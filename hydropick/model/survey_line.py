@@ -147,6 +147,8 @@ class SurveyLine(HasTraits):
             dline = None
             self.core_depth_reference_str = None
             logger.error('Cannot find valid current surface line!')
+        logger.info('actual current surface line chosen for core depth' +
+                    'reference is {}'.format(dline_name))
         return dline
 
     def _set_core_depth_reference(self, name):
@@ -233,7 +235,7 @@ class SurveyLine(HasTraits):
             source_name=filename,
             index_array=self.trace_num - 1,
             depth_array=sdi_dict_raw['depth_r1'],
-            lock = True
+            lock=True
         )
         survey_io.write_depth_line_to_hdf(hdf5_file, sdi_surface, self.name)
         # depth lines stored separately

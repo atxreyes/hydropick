@@ -74,6 +74,8 @@ def import_cores(directory=None, h5file=None, core_file=None):
 def import_pick_files(directory, h5file):
     # find the GIS file in the directory
     for path in glob.glob(directory + '/*/*/*[pic,pre]'):
+        name = os.path.basename(path)
+        logger.info('importing pick file {}'.format(name))
         survey_io.import_pick_line_from_file(path, h5file)
 
 
