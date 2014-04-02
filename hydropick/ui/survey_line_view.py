@@ -576,6 +576,8 @@ class SurveyLineView(ModelView):
                 # get old and None with Edit Mask:  => set tgt to mask
                 # if tgt was None then old is None. Else old is last line set.
                 new_target = 'mask'
+                
+        ###### ERASE
         # elif new_target == 'None' and :
         #     # this may always happens if edit is not Edit Mask
         #     self.control_view.edit = 'Not Editing'
@@ -621,7 +623,7 @@ class SurveyLineView(ModelView):
             edited.append(tool.data_changed)
             tool.target_line = new_target_plot
             tool.key = new_target
-            tool.edit_allowed = not locked
+            tool.edit_allowed = not locked    ###
 
         if AUTOSAVE_EDIT_ON_CHANGE and old_target_plot:
             edited_data = old_target_plot.value.get_data()
