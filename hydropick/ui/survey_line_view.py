@@ -585,6 +585,13 @@ class SurveyLineView(ModelView):
 
         # change colors and tool tgt for each freq plot
         edited = []
+        locked = False
+        try:
+            new_target_depthline = self.model.depth_dict[new_target]
+            locked = new_target_depthline.locked
+        except:
+            pass
+
         for key in self.model.freq_choices:
             # if new tgt, change its color, else set none
             if new_target != 'None':
@@ -614,6 +621,7 @@ class SurveyLineView(ModelView):
             edited.append(tool.data_changed)
             tool.target_line = new_target_plot
             tool.key = new_target
+            tool.edit_allowed = not locked
 
         if AUTOSAVE_EDIT_ON_CHANGE and old_target_plot:
             edited_data = old_target_plot.value.get_data()
