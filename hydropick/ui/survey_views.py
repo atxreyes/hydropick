@@ -884,8 +884,8 @@ class ControlView(HasTraits):
         resizable=True
     )
 
-    def _anytrait_changed(self, name, old, new):
-        logger.debug('CONTROL_VIEW_trait changed: {}'.format((name, old, new)))
+    # def _anytrait_changed(self, name, old, new):
+    #     logger.debug('CONTROL_VIEW_trait changed: {}'.format((name, old, new)))
 
     def _edit_default(self):
         return 'Not Editing'

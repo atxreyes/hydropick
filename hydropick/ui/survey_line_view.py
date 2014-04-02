@@ -289,10 +289,10 @@ class SurveyLineView(ModelView):
                     .format(self.model.survey_line.name, name))
         self.model.survey_line.save_to_disk()
 
-    @on_trait_change('model.anytrait')
-    def logchange(self, obj, name, old, new):
-        logger.debug('DATASESSION trait changed: {}'
-                     .format((name, old, new)))
+    # @on_trait_change('model.anytrait')
+    # def logchange(self, obj, name, old, new):
+    #     logger.debug('DATASESSION trait changed: {}'
+    #                  .format((name, old, new)))
 
     def toggle_mask_edit(self, obj, name, old, new):
         ''' if key toggle event fires from a tool, toggle the control view
