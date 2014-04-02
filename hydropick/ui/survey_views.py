@@ -390,7 +390,7 @@ class PlotContainer(HasTraits):
             self.zoom_tools[key] = zoom
             main.value_mapper.on_trait_change(self.zoom_all_value, 'updated')
             main.index_mapper.on_trait_change(self.zoom_all_index, 'updated')
-            
+
             # add line inspector and attach to freeze tool
             #*********************************************
             line_inspector = LineInspector(component=img_plot,
@@ -1028,7 +1028,9 @@ class DataView(HasTraits):
 
 class MsgView(HasTraits):
     msg = Str('my msg')
+    stop = Bool(False)
     traits_view = View(Item('msg', editor=TextEditor(), style='custom'),
+                       'stop',
                        buttons=['OK', 'Cancel'],
                        kind='modal',
                        resizable=True
