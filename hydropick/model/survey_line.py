@@ -115,6 +115,11 @@ class SurveyLine(HasTraits):
     # project directory where this survey line will save itself
     project_dir = Str
 
+    # dictionary of image settings - one tuple for each frequency
+    # ex:  image_settings['50.0'] = [c, b, i] where these are 2 floats
+    # and a bool for contrast, brightness and inverting.
+    image_settings = Dict()
+
     def _final_lake_depth_default(self):
         default = self.lake_depths.get(
             CURRENT_SURFACE_FROM_BIN_NAME, None)
@@ -132,10 +137,10 @@ class SurveyLine(HasTraits):
         return masked
 
     def save_to_disk(self, project_dir=None):
-        ''' saves this survey line to disk 
+        ''' saves this survey line to disk
         This will save all the trait data list above in the "user generated"
         traits section
-        If the project dir is set in the survey line, this method does not 
+        If the project dir is set in the survey line, this method does not
         need to have it passed by the caller
         '''
         if project_dir is None:
@@ -164,6 +169,7 @@ class SurveyLine(HasTraits):
             intensity = freq_dict['intensity'].T
             self.frequencies[str(key)] = intensity
             self.freq_trace_num[str(key)] = freq_dict['trace_num']
+            self.image_settings[str(key)] = [1, 0, False]
 
         # for all other traits, use un-freq-sorted values
         self.trace_num = sdi_dict_raw['trace_num']
@@ -233,4 +239,3 @@ class SurveyLine(HasTraits):
                 s = '{} is not size {}'.format(a, N)
                 logger.warn(s)
                 self.bad_survey_line = "Array sizes don't match on load"
-

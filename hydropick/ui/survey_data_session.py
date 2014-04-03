@@ -92,6 +92,11 @@ class SurveyDataSession(HasTraits):
     # user comment on status (who approved it or why its bad fore example)
     status_string = DelegatesTo('survey_line')
 
+    # dictionary of image settings - one tuple for each frequency
+    # ex:  image_settings['50.0'] = [c, b, i] where these are 2 floats
+    # and a bool for contrast, brightness and inverting.
+    image_settings = DelegatesTo('survey_line')
+
     ##### ADDITIONAL TRAITS FOR FUNCTIONALITY #################################
 
     #: Dictionary of all depth lines. Allows editor easy access to all lines.

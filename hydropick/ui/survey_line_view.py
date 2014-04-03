@@ -283,7 +283,7 @@ class SurveyLineView(ModelView):
     #==========================================================================
 
     @on_trait_change('model:[final_lake_depth, final_preimpoundment_depth,' +
-                     'status, status_string]')
+                     'status, status_string, image_settings]')
     def save_survey_line(self, obj, name, old, new):
         logger.info('survey_line {} attribute "{}" changed: saving'
                     .format(self.model.survey_line.name, name))
@@ -388,6 +388,7 @@ class SurveyLineView(ModelView):
     @on_trait_change('model')
     def update_plot_container(self):
         ''' makes plot container.  usually called ones per survey line'''
+        self.image_settings = self.model.image_settings
         self.create_data_array()
         c = self.plot_container
         c.data = self.plotdata
@@ -396,6 +397,8 @@ class SurveyLineView(ModelView):
         # need to call tools to activate defaults
         start_tools = self.location_tools
         start_tools = self.depth_tools
+        for f in self.model.frequencies:
+            self.apply_image_settings(f)
         self.line_settings_view = self.update_line_settings_view()
         c.vplot_container.invalidate_and_redraw()
 
@@ -501,7 +504,7 @@ class SurveyLineView(ModelView):
         if name is 'frequency':
             # changed freq : update settings
             freq = new
-            c, b, i = self.image_settings.setdefault(freq, [1, 0, True])
+            c, b, i = self.image_settings.setdefault(freq, [1, 0, False])
             iav.contrast, iav.brightness, iav.invert = c, b, i
         else:
             if iav.frequency:
@@ -512,6 +515,7 @@ class SurveyLineView(ModelView):
                 elif name == 'contrast_brightness':
                     self.image_settings[freq][:2] = new
                 self.apply_image_settings(freq)
+                self.model.image_settings = self.image_settings
 
     def apply_image_settings(self, freq):
         ''' apply saved image settings to this freq (or set default).
@@ -519,7 +523,7 @@ class SurveyLineView(ModelView):
         apply to plot data
         called by adjust image
         '''
-        c, b, invert = self.image_settings.setdefault(freq, [1, 0, True])
+        c, b, invert = self.image_settings.setdefault(freq, [1, 0, False])
         data = self.model.frequencies[freq]
         data = c * data
         b2 = c * b - b
