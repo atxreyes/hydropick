@@ -134,6 +134,9 @@ class SurveyDataSession(HasTraits):
 
     ref_depth_line_name = Str('')
 
+    # event trait added for any method to call when saving line to disk desired
+    save_model = Event
+
     #==========================================================================
     # Defaults
     #==========================================================================

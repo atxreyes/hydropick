@@ -283,7 +283,7 @@ class SurveyLineView(ModelView):
     #==========================================================================
 
     @on_trait_change('model:[final_lake_depth, final_preimpoundment_depth,' +
-                     'status, status_string, image_settings]')
+                     'status, status_string, image_settings, save_model]')
     def save_survey_line(self, obj, name, old, new):
         logger.info('survey_line {} attribute "{}" changed: saving'
                     .format(self.model.survey_line.name, name))
@@ -425,6 +425,7 @@ class SurveyLineView(ModelView):
     def image_adjustment_dialog(self):
         ''' brings up image C&B edit dialog. close to continue'''
         self.image_adjust_view.configure_traits()
+        self.model.save_model = True
 
     def show_data_dialog(self):
         ''' cannot make modal if want to monitor so should be pane.
