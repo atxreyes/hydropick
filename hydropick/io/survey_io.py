@@ -59,6 +59,10 @@ def read_survey_line_from_hdf(project_dir, name):
     return line
 
 
+def read_survey_line_attrs_from_hdf(project_dir, name):
+    return hdf5.HDF5Backend(project_dir).read_survey_line_attrs(name)
+
+
 def read_frequency_data_from_hdf(project_dir, name):
     return hdf5.HDF5Backend(project_dir).read_frequency_data(name)
 
@@ -117,6 +121,14 @@ def write_survey_line_to_hdf(project_dir, survey_line):
     for depth_line_dict in depth_line_dicts:
         for depth_line in depth_line_dict.values():
             write_depth_line_to_hdf(project_dir, depth_line, survey_line.name)
+
+    attrs_dict = {
+        'final_lake_depth': survey_line.final_lake_depth,
+        'final_preimpoundment_depth': survey_line.final_preimpoundment_depth,
+        'status_string': survey_line.status_string
+    }
+
+    hdf5.HDF5Backend(project_dir).write_survey_line_attrs(attrs_dict, survey_line.name)
 
 
 def check_trace_num_array(trace_num_array, survey_line_name):

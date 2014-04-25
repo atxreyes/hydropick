@@ -247,6 +247,10 @@ class SurveyLine(HasTraits):
                                      project_dir, self.name, 'current')
         self.preimpoundment_depths = survey_io.read_pick_lines_from_hdf(
                                      project_dir, self.name, 'preimpoundment')
+        attrs_dict = survey_io.read_survey_line_attrs_from_hdf(project_dir, self.name)
+        for key, value in attrs_dict.iteritems():
+            if hasattr(self, key):
+                setattr(self, key, value)
 
     def nearby_core_samples(self, core_samples, dist_tol=100):
         """ Find core samples from a list of CoreSample instances

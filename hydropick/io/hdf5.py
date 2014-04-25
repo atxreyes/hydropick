@@ -181,6 +181,17 @@ class HDF5Backend(object):
             raise tables.NoSuchNodeError
         return freq_data
 
+    def read_survey_line_attrs(self, line_name):
+        """reads survey line attributes
+        """
+        line_dir = self._get_survey_line_dir(line_name)
+        path = os.path.join(line_dir, 'attributes.json')
+        try:
+            with self._open_file(path, 'r', open) as f:
+                return json.load(f)
+        except IOError:
+            return {}
+
     def read_survey_line_coords(self, line_name):
         try:
             with self._open_file(self.raw_data_path, 'r') as f:
@@ -203,6 +214,14 @@ class HDF5Backend(object):
                 self._write_array(f, pick_line_group, array_name, array)
             for key, value in line_data.iteritems():
                 pick_line_group._v_attrs[key] = self._safe_serialize(value)
+
+    def write_survey_line_attrs(self, attrs_dict, line_name):
+        """writes survey line attributes
+        """
+        line_dir = self._get_survey_line_dir(line_name)
+        path = os.path.join(line_dir, 'attributes.json')
+        with self._open_file(path, 'a', open) as f:
+            json.dump(attrs_dict, f)
 
     def _get_core_samples_group(self, f):
         """returns the group for the collection of core_sample data for a
@@ -245,7 +264,8 @@ class HDF5Backend(object):
 
     def _get_pick_path(self, line_name, line_type):
         """returns the path to the file containing picks type"""
-        return os.path.join(self.project_dir, 'picks', line_name, line_type + '.h5')
+        line_dir = self._get_survey_line_dir(line_name)
+        return os.path.join(line_dir, 'picks', line_type + '.h5')
 
     def _get_pick_line_group(self, f, line_name, line_type, pick_name):
         """returns the group for a survey line's picks of a particular type"""
@@ -279,6 +299,10 @@ class HDF5Backend(object):
         """returns the group for lake shoreline"""
         return self._get_or_create_group(f, f.root, 'shoreline')
 
+    def _get_survey_line_dir(self, line_name):
+        """returns the path to the survey line directory"""
+        return os.path.join(self.project_dir, line_name)
+
     def _get_survey_lines_group(self, f):
         """returns the group for the collection of survey_lines
         - creating it if necessary"""
@@ -299,22 +323,24 @@ class HDF5Backend(object):
         return line_group
 
     @contextlib.contextmanager
-    def _open_file(self, relative_path, mode):
+    def _open_file(self, relative_path, mode, opener=None):
         """context manager that opens a file and also checks that the hydropick
         version number is correct
         """
-        filepath = os.path.join(self.project_dir, relative_path)
+        if opener is None:
+            opener = self._open_file_helper
 
+        filepath = os.path.join(self.project_dir, relative_path)
         dirname = os.path.dirname(filepath)
         if not os.path.exists(dirname):
             os.makedirs(dirname)
 
         if 'a' in mode or 'w' in mode:
             with lockfile.LockFile(filepath + '-lock'):
-                with self._open_file_helper(filepath, mode) as f:
+                with opener(filepath, mode) as f:
                     yield f
         else:
-            with self._open_file_helper(filepath, mode) as f:
+            with opener(filepath, mode) as f:
                 yield f
 
     @contextlib.contextmanager
