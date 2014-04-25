@@ -109,6 +109,16 @@ def write_depth_line_to_hdf(project_dir, depth_line, survey_line_name):
     hdf5.HDF5Backend(project_dir).write_pick(data, survey_line_name, line_type)
 
 
+def write_survey_line_to_hdf(project_dir, survey_line):
+    depth_line_dicts = [
+        survey_line.lake_depths,
+        survey_line.preimpoundment_depths
+    ]
+    for depth_line_dict in depth_line_dicts:
+        for depth_line in depth_line_dict.values():
+            write_depth_line_to_hdf(project_dir, depth_line, survey_line.name)
+
+
 def check_trace_num_array(trace_num_array, survey_line_name):
     ''' checks for bad points in trace_num array.
     assumes trace num array should be a sequential array, 1 to len(array)
