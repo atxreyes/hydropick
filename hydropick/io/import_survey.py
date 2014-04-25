@@ -140,8 +140,7 @@ def import_sdi(directory, project_dir):
                     logger.warning(msg)
                     line = None
             if line:
-                ### FIXME : need to be merged with proj dir branch
-                line.project_dir = directory
+                line.project_dir = project_dir
                 group_lines.append(line)
 
         if group_lines:
