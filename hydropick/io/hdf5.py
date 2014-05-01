@@ -201,6 +201,18 @@ class HDF5Backend(object):
             raise tables.NoSuchNodeError
         return coords
 
+    def read_survey_line_mask(self, line_name):
+        try:
+            path = self._get_mask_path(line_name)
+            with self._open_file(path, 'r') as f:
+                return f.root.mask.read()
+        except tables.FileModeError:
+            return np.array([], dtype=bool)
+        except tables.NoSuchNodeError:
+            return np.array([], dtype=bool)
+        except IOError:
+            return np.array([], dtype=bool)
+
     def write_pick(self, line_data, line_name, line_type):
         """writes a pick line (current surface or preimpoundment) to hdf5 file
         """
@@ -222,6 +234,12 @@ class HDF5Backend(object):
         path = os.path.join(line_dir, 'attributes.json')
         with self._open_file(path, 'w', open) as f:
             json.dump(attrs_dict, f)
+
+    def write_survey_line_mask(self, mask, line_name):
+        """writes survey line mask"""
+        path = self._get_mask_path(line_name)
+        with self._open_file(path, 'w') as f:
+            self._write_array(f, '/', 'mask', mask.astype(bool))
 
     def _get_core_samples_group(self, f):
         """returns the group for the collection of core_sample data for a
@@ -254,6 +272,11 @@ class HDF5Backend(object):
         except tables.NoSuchNodeError:
             frequency_group = f.createGroup(survey_line_group, 'frequencies')
         return frequency_group
+
+    def _get_mask_path(self, line_name):
+        """returns the path to the file containing mask for a line"""
+        line_dir = self._get_survey_line_dir(line_name)
+        return os.path.join(line_dir, 'mask.h5')
 
     def _get_or_create_group(self, f, parent, name):
         try:

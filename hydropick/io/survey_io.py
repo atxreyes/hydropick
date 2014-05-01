@@ -63,6 +63,10 @@ def read_survey_line_attrs_from_hdf(project_dir, name):
     return hdf5.HDF5Backend(project_dir).read_survey_line_attrs(name)
 
 
+def read_survey_line_mask_from_hdf(project_dir, name):
+    return hdf5.HDF5Backend(project_dir).read_survey_line_mask(name)
+
+
 def read_frequency_data_from_hdf(project_dir, name):
     return hdf5.HDF5Backend(project_dir).read_frequency_data(name)
 
@@ -102,7 +106,7 @@ def write_depth_line_to_hdf(project_dir, depth_line, survey_line_name):
         index_array=d.index_array,
         depth_array=d.depth_array,
         edited=d.edited,
-        color=str(d.color.toTuple()),   #so pytables can handle it
+        color=str(d.color.toTuple()),   # so pytables can handle it
         notes=d.notes,
         locked=d.locked,
     )
@@ -129,6 +133,7 @@ def write_survey_line_to_hdf(project_dir, survey_line):
     }
 
     hdf5.HDF5Backend(project_dir).write_survey_line_attrs(attrs_dict, survey_line.name)
+    hdf5.HDF5Backend(project_dir).write_survey_line_mask(survey_line.mask, survey_line.name)
 
 
 def check_trace_num_array(trace_num_array, survey_line_name):

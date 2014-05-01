@@ -252,6 +252,8 @@ class SurveyLine(HasTraits):
             if hasattr(self, key):
                 setattr(self, key, value)
 
+        self.mask = survey_io.read_survey_line_mask_from_hdf(project_dir, self.name)
+
     def nearby_core_samples(self, core_samples, dist_tol=100):
         """ Find core samples from a list of CoreSample instances
         that lie within dist_tol units of this survey line.
