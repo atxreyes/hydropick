@@ -220,7 +220,7 @@ class HDF5Backend(object):
         """
         line_dir = self._get_survey_line_dir(line_name)
         path = os.path.join(line_dir, 'attributes.json')
-        with self._open_file(path, 'a', open) as f:
+        with self._open_file(path, 'w', open) as f:
             json.dump(attrs_dict, f)
 
     def _get_core_samples_group(self, f):
