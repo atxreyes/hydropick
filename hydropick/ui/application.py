@@ -72,6 +72,8 @@ class Application(HasTraits):
                             const=logging.WARNING, help='quiet logging')
         parser.add_argument('-d', '--debug', action='store_const', dest='logging',
                             const=logging.DEBUG, help='debug logging')
+        parser.add_argument('--export', help='survey points file to export to',
+                            dest='export_', metavar='POINTS_FILE')
         args = parser.parse_args()
         return args
 
@@ -85,6 +87,9 @@ class Application(HasTraits):
             from ..io.import_survey import import_survey
             survey = import_survey(args.import_, args.with_picks_)
             self.task.survey = survey
+        if args.export_:
+            from ..io.export_survey import export_survey_points
+            export_survey_points(self.task.survey, args.export_)
         if args.logging is not None:
             self.logger.setLevel(args.logging)
         else:

@@ -169,6 +169,12 @@ class SurveyTask(Task):
                                enabled_name='not_enabled'),
                     id='Save', name='Save'
                 ),
+                SGroup(
+                    TaskAction(name="Export Survey Points",
+                               method='on_export_survey_points',
+                               enabled_name='have_survey'),
+                    id='ExportSurveyPoints', name='Export Survey Points'
+                ),
                 id='File', name="&File",
             ),
             SMenu(
