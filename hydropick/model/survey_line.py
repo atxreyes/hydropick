@@ -254,6 +254,20 @@ class SurveyLine(HasTraits):
 
         self.mask = survey_io.read_survey_line_mask_from_hdf(project_dir, self.name)
 
+    def unload_data(self):
+        """Dereferences larger data structures so they can be garbage collected"""
+        self.frequencies = {}
+        self.freq_trace_num = {}
+        self.trace_num = []
+        self.locations = np.array([], (None, 2))
+        self.lat_long = np.array([], (None, 2))
+        self.heave = []
+        self.power = []
+        self.gain = []
+        self.lake_depths = {}
+        self.preimpoundment_depths = {}
+        self.mask = []
+
     def nearby_core_samples(self, core_samples, dist_tol=100):
         """ Find core samples from a list of CoreSample instances
         that lie within dist_tol units of this survey line.

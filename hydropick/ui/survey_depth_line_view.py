@@ -434,6 +434,11 @@ class DepthLineView(HasStrictTraits):
                 else:
                     # continue with remaining lines
                     self.no_problem = True
+
+                # unload the line to free memory
+                if line.name != self.survey_line_name:
+                    line.unload_data()
+
                 if self.stop:
                     break
             self.stop = False

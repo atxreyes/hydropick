@@ -103,7 +103,7 @@ class SurveyLinePane(TraitsTaskPane):
     def replot_survey_line(self):
         self._survey_line_changed()
 
-    def _survey_line_changed(self):
+    def _survey_line_changed(self, old=None, new=None):
         ''' handle loading of survey line view if valid line provide or else
         provide an empty view.
         '''
@@ -112,16 +112,14 @@ class SurveyLinePane(TraitsTaskPane):
             self.show_view = False
             self.survey_line_view = None
         else:
+            self.survey_line.load_data(self.survey.project_dir)
             data_session = self.data_session_dict.get(self.line_name, None)
             if data_session is None:
                 # create new datasession object and entry for this surveyline.
-                if self.survey_line.trace_num.size == 0:
-                    # need to load data for this line
-                    self.survey_line.load_data(self.survey.project_dir)
                 data_session = SurveyDataSession(survey_line=self.survey_line,
                                                  algorithms=self.algorithms)
                 self.data_session_dict[self.line_name] = data_session
-            
+
             # load relevant core samples into survey line
             # must do this before creating survey line view
             all_samples = self.survey.core_samples
@@ -135,6 +133,8 @@ class SurveyLinePane(TraitsTaskPane):
             logger.debug('updating survey line view with changed survey line')
             self.survey_line_view = SurveyLineView(model=data_session)
             self.show_view = True
+        if old is not None:
+            old.unload_data()
 
     view = View(
         Item('survey_line_view', style='custom', show_label=False,
