@@ -19,30 +19,30 @@ from ..model.lake import Lake
 logger = logging.getLogger(__name__)
 
 
-def import_survey_line_from_file(filename, h5file, linename):
-    hdf5.HDF5Backend(h5file).import_binary_file(filename)
+def import_survey_line_from_file(filename, project_dir, linename):
+    hdf5.HDF5Backend(project_dir).import_binary_file(filename)
 
 
-def import_core_samples_from_file(filename, h5file):
+def import_core_samples_from_file(filename, project_dir):
     logger.info("Importing corestick file '%s'", filename)
-    hdf5.HDF5Backend(h5file).import_corestick_file(filename)
+    hdf5.HDF5Backend(project_dir).import_corestick_file(filename)
 
 
-def import_pick_line_from_file(filename, h5file):
-    hdf5.HDF5Backend(h5file).import_pick_file(filename)
+def import_pick_line_from_file(filename, project_dir):
+    hdf5.HDF5Backend(project_dir).import_pick_file(filename)
 
 
-def import_shoreline_from_file(lake_name, filename, h5file):
+def import_shoreline_from_file(lake_name, filename, project_dir):
     logger.info("Importing shoreline file '%s'", filename)
-    hdf5.HDF5Backend(h5file).import_shoreline_file(lake_name, filename)
+    hdf5.HDF5Backend(project_dir).import_shoreline_file(lake_name, filename)
 
 
-def read_core_samples_from_hdf(h5file):
-    return hdf5.HDF5Backend(h5file).read_core_samples()
+def read_core_samples_from_hdf(project_dir):
+    return hdf5.HDF5Backend(project_dir).read_core_samples()
 
 
-def read_shoreline_from_hdf(h5file):
-    shoreline_dict = hdf5.HDF5Backend(h5file).read_shoreline()
+def read_shoreline_from_hdf(project_dir):
+    shoreline_dict = hdf5.HDF5Backend(project_dir).read_shoreline()
     return Lake(
         crs=shoreline_dict['crs'],
         name=shoreline_dict['lake_name'],
@@ -51,40 +51,50 @@ def read_shoreline_from_hdf(h5file):
     )
 
 
-def read_survey_line_from_hdf(h5file, name):
-    coords = hdf5.HDF5Backend(h5file).read_survey_line_coords(name)
+def read_survey_line_from_hdf(project_dir, name):
+    coords = hdf5.HDF5Backend(project_dir).read_survey_line_coords(name)
     line = SurveyLine(name=name,
-                      data_file_path=h5file,
+                      data_file_path=project_dir,
                       navigation_line=LineString(coords))
     return line
 
 
-def read_frequency_data_from_hdf(h5file, name):
-    return hdf5.HDF5Backend(h5file).read_frequency_data(name)
+def read_survey_line_attrs_from_hdf(project_dir, name):
+    return hdf5.HDF5Backend(project_dir).read_survey_line_attrs(name)
 
 
-def read_sdi_data_unseparated_from_hdf(h5file, name):
-    return hdf5.HDF5Backend(h5file).read_sdi_data_unseparated(name)
+def read_survey_line_mask_from_hdf(project_dir, name):
+    return hdf5.HDF5Backend(project_dir).read_survey_line_mask(name)
 
 
-def read_pick_lines_from_hdf(h5file, line_name, line_type):
-    pick_lines = hdf5.HDF5Backend(h5file).read_picks(line_name, line_type)
+def read_frequency_data_from_hdf(project_dir, name):
+    return hdf5.HDF5Backend(project_dir).read_frequency_data(name)
+
+
+def read_sdi_data_unseparated_from_hdf(project_dir, name):
+    return hdf5.HDF5Backend(project_dir).read_sdi_data_unseparated(name)
+
+
+def read_pick_lines_from_hdf(project_dir, line_name, line_type):
+    pick_lines = hdf5.HDF5Backend(project_dir).read_picks(line_name, line_type)
 
     return dict([
         (name, DepthLine(**pick_line))
         for name, pick_line in pick_lines.iteritems()
     ])
 
-def read_one_pick_line_from_hdf(pic_name, pick_lines=None, h5file=None,
+
+def read_one_pick_line_from_hdf(pic_name, pick_lines=None, project_dir=None,
                                 line_name=None, line_type=None):
     if pick_lines is None:
-        pick_lines = hdf5.HDF5Backend(h5file).read_picks(line_name,
-                                                         line_type)
+        backend = hdf5.HDF5Backend(project_dir)
+        pick_lines = backend.read_picks(line_name, line_type)
     pick_line = pick_lines[pic_name]
     depth_line = DepthLine(**pick_line)
     return depth_line
 
-def write_depth_line_to_hdf(h5file, depth_line, survey_line_name):
+
+def write_depth_line_to_hdf(project_dir, depth_line, survey_line_name):
     d = depth_line
     data = dict(
         name=d.name,
@@ -96,7 +106,7 @@ def write_depth_line_to_hdf(h5file, depth_line, survey_line_name):
         index_array=d.index_array,
         depth_array=d.depth_array,
         edited=d.edited,
-        color=str(d.color.toTuple()),   #so pytables can handle it
+        color=str(d.color.toTuple()),   # so pytables can handle it
         notes=d.notes,
         locked=d.locked,
     )
@@ -104,7 +114,26 @@ def write_depth_line_to_hdf(h5file, depth_line, survey_line_name):
         line_type = 'current'
     else:
         line_type = 'preimpoundment'
-    hdf5.HDF5Backend(h5file).write_pick(data, survey_line_name, line_type)
+    hdf5.HDF5Backend(project_dir).write_pick(data, survey_line_name, line_type)
+
+
+def write_survey_line_to_hdf(project_dir, survey_line):
+    depth_line_dicts = [
+        survey_line.lake_depths,
+        survey_line.preimpoundment_depths
+    ]
+    for depth_line_dict in depth_line_dicts:
+        for depth_line in depth_line_dict.values():
+            write_depth_line_to_hdf(project_dir, depth_line, survey_line.name)
+
+    attrs_dict = {
+        'final_lake_depth': survey_line.final_lake_depth,
+        'final_preimpoundment_depth': survey_line.final_preimpoundment_depth,
+        'status_string': survey_line.status_string
+    }
+
+    hdf5.HDF5Backend(project_dir).write_survey_line_attrs(attrs_dict, survey_line.name)
+    hdf5.HDF5Backend(project_dir).write_survey_line_mask(survey_line.mask, survey_line.name)
 
 
 def check_trace_num_array(trace_num_array, survey_line_name):

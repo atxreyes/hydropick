@@ -289,10 +289,10 @@ class SurveyLineView(ModelView):
                     .format(self.model.survey_line.name, name))
         self.model.survey_line.save_to_disk()
 
-    @on_trait_change('model.anytrait')
-    def logchange(self, obj, name, old, new):
-        logger.debug('DATASESSION trait changed: {}'
-                     .format((name, old, new)))
+    # @on_trait_change('model.anytrait')
+    # def logchange(self, obj, name, old, new):
+    #     logger.debug('DATASESSION trait changed: {}'
+    #                  .format((name, old, new)))
 
     def toggle_mask_edit(self, obj, name, old, new):
         ''' if key toggle event fires from a tool, toggle the control view
@@ -304,6 +304,16 @@ class SurveyLineView(ModelView):
     @on_trait_change('control_view.mark_bad_data_mode')
     def update_trace_tools(self):
         self.set_trace_tools_mask_edit()
+
+    @on_trait_change('model.survey_line.core_depth_reference_str')
+    def update_core_plots(self, new):
+        logger.debug('updating core ref to {}'
+                     .format(self.model.survey_line.core_depth_reference.name))
+        self.plot_container.update_core_plots()
+        if self.model.survey_line.core_depth_reference_str == 'Final Lake Depth':
+            self.model.survey_line.on_trait_change(self.plot_container.update_core_plots, 'final_lake_depth')
+        else:
+            self.model.survey_line.on_trait_change(self.plot_container.update_core_plots, 'final_lake_depth', remove=True)
 
     def set_trace_tools_mask_edit(self):
         ''' this should always correspond to control view mode'''
@@ -566,6 +576,8 @@ class SurveyLineView(ModelView):
                 # get old and None with Edit Mask:  => set tgt to mask
                 # if tgt was None then old is None. Else old is last line set.
                 new_target = 'mask'
+                
+        ###### ERASE
         # elif new_target == 'None' and :
         #     # this may always happens if edit is not Edit Mask
         #     self.control_view.edit = 'Not Editing'
@@ -575,6 +587,13 @@ class SurveyLineView(ModelView):
 
         # change colors and tool tgt for each freq plot
         edited = []
+        locked = False
+        try:
+            new_target_depthline = self.model.depth_dict[new_target]
+            locked = new_target_depthline.locked
+        except:
+            pass
+
         for key in self.model.freq_choices:
             # if new tgt, change its color, else set none
             if new_target != 'None':
@@ -604,6 +623,7 @@ class SurveyLineView(ModelView):
             edited.append(tool.data_changed)
             tool.target_line = new_target_plot
             tool.key = new_target
+            tool.edit_allowed = not locked    ###
 
         if AUTOSAVE_EDIT_ON_CHANGE and old_target_plot:
             edited_data = old_target_plot.value.get_data()

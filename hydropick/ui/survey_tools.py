@@ -260,18 +260,23 @@ class TraceTool(BaseTool):
                     clipped_y = np.clip(newy, *self.ybounds)
                     indices, ys = self.fill_in_missing_pts(current_index,
                                                            clipped_y, ydata)
-                ydata[indices] = ys
-                data_key = self.key + '_y'
-                self.data.set_data(data_key, ydata)
-                self.data_changed = True
-                if self.last_index < indices[-1]:
-                    # moved right
-                    self.last_index = indices[-1]
-                    self.last_y = ys[-1]
-                else:
-                    # moved left
-                    self.last_index = indices[0]
-                    self.last_y = ys[0]
+                try:
+                    ydata[indices] = ys
+                    data_key = self.key + '_y'
+                    self.data.set_data(data_key, ydata)
+                    self.data_changed = True
+                    if self.last_index < indices[-1]:
+                        # moved right
+                        self.last_index = indices[-1]
+                        self.last_y = ys[-1]
+                    else:
+                        # moved left
+                        self.last_index = indices[0]
+                        self.last_y = ys[0]
+
+                except IndexError:
+                    # pretend the mouse didn't move
+                    pass
 
             else:
                 # save this mouse position as reference for further moves while

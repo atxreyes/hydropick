@@ -62,7 +62,7 @@ class Application(HasTraits):
                                          ="Hydropick: a hydrological survey editor")
         parser.add_argument('--import', help='survey data to import',
                             dest='import_', metavar='DIR')
-        parser.add_argument('--with-picks', 
+        parser.add_argument('--with-picks',
                             help=('if included, then pre and pick' +
                                   'files will be imported'),
                             dest='with_picks_', action='store_true')

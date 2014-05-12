@@ -63,9 +63,6 @@ class DepthLineView(HasStrictTraits):
     # name of current line in editor: convenience for display
     survey_line_name = Property(depends_on=['data_session'])
 
-    # name of hdf5_file for this survey in case we need to load survey lines
-    hdf5_file = Str
-
     # list of available depth lines extracted from survey line for choices
     depth_lines = Property(depends_on=['data_session',
                                        'data_session.depth_lines_updated'])
@@ -73,6 +70,9 @@ class DepthLineView(HasStrictTraits):
 
     # name of depth_line to view chosen from pulldown of line choices.
     selected_depth_line_name = Str
+
+    # name of project directory for this survey in case we need to load survey lines
+    project_dir = Str
 
     # current depth line object
     model = Instance(DepthLine)
@@ -150,6 +150,9 @@ class DepthLineView(HasStrictTraits):
 
     # currently selected group (#### DEPRECATED - LEAVE IN JUST IN CASE)
     current_survey_line_group = Supports(ISurveyLineGroup)
+
+    # used to stop loop user wants
+    stop = Bool(False)
 
     #==========================================================================
     # Define Views
@@ -240,16 +243,22 @@ class DepthLineView(HasStrictTraits):
         alg_name = self.source_name
         logger.debug('configuring alg: {}. Alg exists={}, model args={}'
                      .format(alg_name, self.current_algorithm, self.model.args))
-        if self.current_algorithm is None:
+        alg_exists = alg_name in self.algorithms.keys()
+        if not alg_exists:
+            self.log_problem('valid algorithm not chosen')
+        if self.current_algorithm is None and self.no_problem:
             self.set_current_algorithm(alg_name=alg_name)
-        view = AlgorithmPresenter(algorithm=self.current_algorithm)
-        # now edit alg args.
-        view.configure_traits()
-        # this needs to be reset to apply changes even though same object
-        self.current_algorithm = view.algorithm
-        if self.current_algorithm:
-            logger.debug('configured alg: {} with args={}'
-                         .format(alg_name, self.alg_arg_dict))
+        if self.no_problem:
+            view = AlgorithmPresenter(algorithm=self.current_algorithm)
+            # now edit alg args.
+            view.configure_traits()
+            # this needs to be reset to apply changes even though same object
+            self.current_algorithm = view.algorithm
+            if self.current_algorithm:
+                logger.debug('configured alg: {} with args={}'
+                             .format(alg_name, self.alg_arg_dict))
+        else:
+            self.no_problem = True
 
     def update_model_args(self):
         ''' current algorithm or its arguments have changed
@@ -401,7 +410,7 @@ class DepthLineView(HasStrictTraits):
             for line in good_lines:
                 if line.trace_num.size == 0:
                     # need to load line
-                    line.load_data(self.hdf5_file)
+                    line.load_data(self.project_dir)
                 if line.status == 'approved' and not overwrite_approved:
                     self.log_problem('line {} already approved and overwrite'
                                      .format(line.name) + 'not selected' +
@@ -425,6 +434,14 @@ class DepthLineView(HasStrictTraits):
                 else:
                     # continue with remaining lines
                     self.no_problem = True
+
+                # unload the line to free memory
+                if line.name != self.survey_line_name:
+                    line.unload_data()
+
+                if self.stop:
+                    break
+            self.stop = False
         else:
             # there was a problem.  User should correct based on messages
             # and retry.  Reset no problem flag so user can continue.
@@ -527,8 +544,11 @@ class DepthLineView(HasStrictTraits):
         '''
         if model is None:
             model = self.model
+        if survey_line is None:
+            survey_line = self.data_session.survey_line
 
-        logger.debug('updating array data on {}'.format(model.name))
+        logger.debug('updating array data on {} for survey line {}'
+                     .format(model.name, survey_line.name))
 
         if model.source == 'algorithm':
             self.check_alg_ready()
@@ -548,7 +568,7 @@ class DepthLineView(HasStrictTraits):
 
         if self.no_problem:
             # check arrays are filled and equal
-            self.check_arrays()
+            self.check_arrays(depth_line=model)
 
         if self.no_problem:
             # line data reset by update so any edits are lost.
@@ -573,7 +593,7 @@ class DepthLineView(HasStrictTraits):
             survey_line.preimpoundment_depths[model.name] = model
             survey_line.final_preimpoundment_depth = model.name
             key = 'PRE_' + model.name
-        
+
         # if model being saved is model being edited, update editor panes
         if model is self.model:
             # set form to the new line
@@ -609,7 +629,7 @@ class DepthLineView(HasStrictTraits):
             survey_line = self.data_session.survey_line
         # log attempt
         alg_name = model.source_name
-        logger.debug('applying algorithm : {} to line {}'
+        logger.debug('applying algorithm : "{}" to line {}'
                      .format(alg_name, survey_line.name))
         algorithm = self.current_algorithm
         try:
@@ -667,16 +687,17 @@ class DepthLineView(HasStrictTraits):
         no_depth_array = d_array_size == 0
         no_index_array = i_array_size == 0
         depth_notequal_index = d_array_size != i_array_size
-        name = self.survey_line_name
+        name = depth_line.survey_line_name
         if no_depth_array or no_index_array or depth_notequal_index:
-            s = 'data arrays sizes are 0 or not equal for {}'.format(name)
+            s = ('data arrays sizes are {}, {} or not equal for {}'
+                 .format(i_array_size, d_array_size, name))
             self.log_problem(s)
 
     def validate_name(self, model):
-        ''' Validation here just means it exist after any whitespace is
+        """ Validation here just means it exist after any whitespace is
         stripped off it.
         Sets problem flag if name can't be validated
-        '''
+        """
         valid_name = model.name.strip()
         if valid_name == '':
             self.log_problem('depth line has no printable name')
@@ -710,11 +731,11 @@ class DepthLineView(HasStrictTraits):
         return existing_line
 
     def check_alg_ready(self, model=None):
-        ''' check algorithm is selected and configured and args match model.
+        """ check algorithm is selected and configured and args match model.
         If args don't match model, probably configure alg was not run, or
         alg name was changed and current_alg reset.
         Sets problem flag if not ready to run
-        '''
+        """
         if model is None:
             model = self.model
 
@@ -745,10 +766,10 @@ class DepthLineView(HasStrictTraits):
                              'Need to configure algorithm')
 
     def check_args(self, model):
-        ''' checks that arguments match the model. run after apply but
+        """ checks that arguments match the model. run after apply but
         before allowing apply to complete.  Run by check_alg_ready.
         Sets problem flag if args don't match
-        '''
+        """
         alg = self.current_algorithm
         logger.debug('checking args for alg {} with args {}'
                      .format(alg.name, self.alg_arg_dict))
@@ -764,6 +785,7 @@ class DepthLineView(HasStrictTraits):
     def message(self, msg='my message'):
         dialog = MsgView(msg=msg)
         dialog.configure_traits()
+        self.stop = dialog.stop
 
     def log_problem(self, msg):
         ''' if there is a problem with any part of creating/updating a line,
@@ -793,16 +815,16 @@ class DepthLineView(HasStrictTraits):
                'args = {args}'
                ]
         s1 = '\n'.join(s1a)
-        s = s0 + s1.format(lines=lines_str,
-                           name=model.name,
-                           ltype=model.line_type,
-                           color=model.color,
-                           locked=model.locked,
-                           notes=model.notes,
-                           edited=model.edited,
-                           source=model.source,
-                           sourcename=model.source_name,
-                           args=model.args)
+        s = (s0 + s1).format(lines=lines_str,
+                             name=model.name,
+                             ltype=model.line_type,
+                             color=model.color,
+                             locked=model.locked,
+                             notes=model.notes,
+                             edited=model.edited,
+                             source=model.source,
+                             sourcename=model.source_name,
+                             args=model.args)
         logger.info(s)
 
     #==========================================================================
@@ -811,7 +833,8 @@ class DepthLineView(HasStrictTraits):
 
     def set_alg_args(self, model_args):
         ''' if possible, sets default arguments for current algorithm configure
-        dialog according to model.args dict. Otherwise warns user and continues'''
+        dialog according to model.args dict. Otherwise warns user and continues
+        '''
         alg = self.current_algorithm
         logger.debug('set arg defaults to model: args={}'.format(model_args))
         default = self.alg_arg_dict

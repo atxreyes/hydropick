@@ -1,10 +1,11 @@
 import contextlib
 import json
-import os.path
+import os
 import warnings
 
 import fiona
 import numpy as np
+import lockfile
 import sdi
 from shapely.geometry import MultiLineString, shape, mapping
 import tables
@@ -13,9 +14,10 @@ import tables
 class HDF5Backend(object):
     """Read/write access for HDF5 data store."""
 
-    def __init__(self, filepath):
-        self.filepath = filepath
-        self.hydropick_format_version = 1
+    def __init__(self, project_dir):
+        self.project_dir = project_dir
+        self.hydropick_format_version = 2
+        self.raw_data_path = 'raw_data.h5'
 
     def import_binary_file(self, bin_file):
         data = sdi.binary.read(bin_file)
@@ -24,7 +26,7 @@ class HDF5Backend(object):
         y = data['frequencies'][-1]['interpolated_northing']
         coords = np.vstack((x, y)).T
         line_name = data['survey_line_number']
-        with self._open_file('a') as f:
+        with self._open_file(self.raw_data_path, 'a') as f:
             line_group = self._get_survey_line_group(f, line_name)
             self._write_array(f, line_group, 'navigation_line', coords)
             f.flush()
@@ -55,8 +57,10 @@ class HDF5Backend(object):
         surface_number = pick_data['surface_number']
         if surface_number == 1:
             line_type = 'current'
+            type_label = 'current surface'
         elif surface_number == 2:
             line_type = 'preimpoundment'
+            type_label = 'pre-impoundment surface'
         else:
             raise NotImplementedError(
                 'unexpected line file type: {}'.format(surface_number))
@@ -64,11 +68,12 @@ class HDF5Backend(object):
         line_data = {
             'survey_line_name': line_name,
             'name': 'pickfile_' + line_type,
+            'line_type': type_label,
             'depth_array': pick_data['depth'],
             'index_array': pick_data['trace_number'] - 1,
             'edited': False,
             'source': 'previous depth line',
-            'source_name': pick_file,
+            'source_name': os.path.basename(pick_file),
         }
 
         self.write_pick(line_data, line_name, line_type)
@@ -93,7 +98,7 @@ class HDF5Backend(object):
                 geom = MultiLineString([
                     shape(geometry) for geometry in geometries])
 
-        with self._open_file('a') as f:
+        with self._open_file(self.raw_data_path, 'a') as f:
             shoreline_group = self._get_shoreline_group(f)
             shoreline_group._v_attrs.crs = self._safe_serialize(crs)
             shoreline_group._v_attrs.lake_name = self._safe_serialize(lake_name)
@@ -106,7 +111,7 @@ class HDF5Backend(object):
 
     def read_core_samples(self):
         try:
-            with self._open_file('r') as f:
+            with self._open_file(self.raw_data_path, 'r') as f:
                 core_samples_group = self._get_core_samples_group(f)
                 core_samples = self._safe_unserialize(core_samples_group._v_attrs.core_samples)
         except tables.FileModeError:
@@ -116,7 +121,11 @@ class HDF5Backend(object):
     def read_picks(self, line_name, line_type):
         """returns picks for a given line and type """
         try:
-            with self._open_file('r') as f:
+            path = self._get_pick_path(line_name, line_type)
+            if not os.path.exists(path):
+                return {}
+
+            with self._open_file(path, 'r') as f:
                 pick_type_group = self._get_pick_type_group(f, line_name, line_type)
                 picks = [
                     self._read_pick(line_group)
@@ -128,7 +137,7 @@ class HDF5Backend(object):
 
     def read_shoreline(self):
         try:
-            with self._open_file('r') as f:
+            with self._open_file(self.raw_data_path, 'r') as f:
                 shoreline_group = self._get_shoreline_group(f)
                 crs = self._safe_unserialize(shoreline_group._v_attrs.crs)
                 lake_name = self._safe_unserialize(shoreline_group._v_attrs.lake_name)
@@ -149,7 +158,7 @@ class HDF5Backend(object):
 
     def read_sdi_data_unseparated(self, line_name):
         try:
-            with self._open_file('r') as f:
+            with self._open_file(self.raw_data_path, 'r') as f:
                 unsep_grp = self._get_sdi_data_unseparated_group(f, line_name)
                 data = [(array.name, array.read()) for array in unsep_grp]
                 sdi_data = dict(data)
@@ -159,7 +168,7 @@ class HDF5Backend(object):
 
     def read_frequency_data(self, line_name):
         try:
-            with self._open_file('r') as f:
+            with self._open_file(self.raw_data_path, 'r') as f:
                 frequencies_group = self._get_frequencies_group(f, line_name)
                 freq_data = [
                     dict([
@@ -172,27 +181,65 @@ class HDF5Backend(object):
             raise tables.NoSuchNodeError
         return freq_data
 
+    def read_survey_line_attrs(self, line_name):
+        """reads survey line attributes
+        """
+        line_dir = self._get_survey_line_dir(line_name)
+        path = os.path.join(line_dir, 'attributes.json')
+        try:
+            with self._open_file(path, 'r', open) as f:
+                return json.load(f)
+        except IOError:
+            return {}
+
     def read_survey_line_coords(self, line_name):
         try:
-            with self._open_file('r') as f:
+            with self._open_file(self.raw_data_path, 'r') as f:
                 line_group = self._get_survey_line_group(f, line_name)
                 coords = line_group.navigation_line.read()
         except tables.FileModeError:
             raise tables.NoSuchNodeError
         return coords
 
+    def read_survey_line_mask(self, line_name):
+        try:
+            path = self._get_mask_path(line_name)
+            with self._open_file(path, 'r') as f:
+                return f.root.mask.read()
+        except tables.FileModeError:
+            return np.array([], dtype=bool)
+        except tables.NoSuchNodeError:
+            return np.array([], dtype=bool)
+        except IOError:
+            return np.array([], dtype=bool)
+
     def write_pick(self, line_data, line_name, line_type):
         """writes a pick line (current surface or preimpoundment) to hdf5 file
         """
-        with self._open_file('a') as f:
+        path = self._get_pick_path(line_name, line_type)
+        with self._open_file(path, 'a') as f:
             pick_name = line_data['name']
-            pick_line_group = self._get_pick_line_group(f, line_name, 
+            pick_line_group = self._get_pick_line_group(f, line_name,
                                                         line_type, pick_name)
             for array_name in ['depth_array', 'index_array']:
                 array = line_data.pop(array_name)
                 self._write_array(f, pick_line_group, array_name, array)
             for key, value in line_data.iteritems():
                 pick_line_group._v_attrs[key] = self._safe_serialize(value)
+
+    def write_survey_line_attrs(self, attrs_dict, line_name):
+        """writes survey line attributes
+        """
+        line_dir = self._get_survey_line_dir(line_name)
+        path = os.path.join(line_dir, 'attributes.json')
+        with self._open_file(path, 'w', open) as f:
+            json.dump(attrs_dict, f)
+
+    def write_survey_line_mask(self, mask, line_name):
+        """writes survey line mask"""
+        path = self._get_mask_path(line_name)
+        with self._open_file(path, 'w') as f:
+            self._write_array(f, '/', 'mask', mask.astype(bool))
 
     def _get_core_samples_group(self, f):
         """returns the group for the collection of core_sample data for a
@@ -226,12 +273,22 @@ class HDF5Backend(object):
             frequency_group = f.createGroup(survey_line_group, 'frequencies')
         return frequency_group
 
+    def _get_mask_path(self, line_name):
+        """returns the path to the file containing mask for a line"""
+        line_dir = self._get_survey_line_dir(line_name)
+        return os.path.join(line_dir, 'mask.h5')
+
     def _get_or_create_group(self, f, parent, name):
         try:
             group = f.getNode(parent, name)
         except tables.NoSuchNodeError:
             group = f.createGroup(parent, name)
         return group
+
+    def _get_pick_path(self, line_name, line_type):
+        """returns the path to the file containing picks type"""
+        line_dir = self._get_survey_line_dir(line_name)
+        return os.path.join(line_dir, 'picks', line_type + '.h5')
 
     def _get_pick_line_group(self, f, line_name, line_type, pick_name):
         """returns the group for a survey line's picks of a particular type"""
@@ -265,6 +322,10 @@ class HDF5Backend(object):
         """returns the group for lake shoreline"""
         return self._get_or_create_group(f, f.root, 'shoreline')
 
+    def _get_survey_line_dir(self, line_name):
+        """returns the path to the survey line directory"""
+        return os.path.join(self.project_dir, line_name)
+
     def _get_survey_lines_group(self, f):
         """returns the group for the collection of survey_lines
         - creating it if necessary"""
@@ -285,17 +346,35 @@ class HDF5Backend(object):
         return line_group
 
     @contextlib.contextmanager
-    def _open_file(self, mode):
+    def _open_file(self, relative_path, mode, opener=None):
         """context manager that opens a file and also checks that the hydropick
         version number is correct
         """
-        with tables.openFile(self.filepath, mode) as f:
+        if opener is None:
+            opener = self._open_file_helper
+
+        filepath = os.path.join(self.project_dir, relative_path)
+        dirname = os.path.dirname(filepath)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+
+        if 'a' in mode or 'w' in mode:
+            with lockfile.LockFile(filepath + '-lock'):
+                with opener(filepath, mode) as f:
+                    yield f
+        else:
+            with opener(filepath, mode) as f:
+                yield f
+
+    @contextlib.contextmanager
+    def _open_file_helper(self, filepath, mode):
+        with tables.openFile(filepath, mode) as f:
             if len(f.listNodes('/')) == 0:
                 f.root._v_attrs.version = self.hydropick_format_version
             if not hasattr(f.root._v_attrs, 'version') or f.root._v_attrs.version != self.hydropick_format_version:
                 # TODO: implement upgrade code
                 raise NotImplementedError(
-                    "Unsupported version of hdf5 backend file. Delete file and try again."
+                    "Unsupported version of hdf5 backend files. Delete file and try again."
                 )
             else:
                 yield f
@@ -348,13 +427,13 @@ class HDF5Backend(object):
             f.createArray(group, name, array)
 
     def _write_core_samples(self, core_sample_dicts):
-        with self._open_file('a') as f:
+        with self._open_file(self.raw_data_path, 'a') as f:
             core_samples_group = self._get_core_samples_group(f)
             core_samples_group._v_attrs.core_samples = self._safe_serialize(core_sample_dicts)
             f.flush()
 
     def _write_freq_dicts(self, line_name, freq_dicts):
-        with self._open_file('a') as f:
+        with self._open_file(self.raw_data_path, 'a') as f:
             for freq_dict in freq_dicts:
                 khz = freq_dict.pop('kHz')
                 freq_group = self._get_frequency_group(f, line_name, khz)
@@ -363,7 +442,7 @@ class HDF5Backend(object):
             f.flush()
 
     def _write_raw_sdi_dict(self, line_name, raw_dict):
-        with self._open_file('a') as f:
+        with self._open_file(self.raw_data_path, 'a') as f:
             sdi_unsep_grp = self._get_sdi_data_unseparated_group(f, line_name)
             for key, value in raw_dict.iteritems():
                 if key is not 'intensity':

@@ -52,6 +52,8 @@ class SurveyDepthPane(TraitsDockPane):
     # dict of algorithms
     algorithms = DelegatesTo('task')
 
+    #project_dir = Property(depends_on='survey')
+
     # determines visibility of Depthline view
     show_view = Bool(False)
 
@@ -69,7 +71,7 @@ class SurveyDepthPane(TraitsDockPane):
     @on_trait_change('selected_survey_lines')
     def update_depth_view_survey_lines(self):
         self._update_depth_view_survey_lines()
-        
+
     def _update_depth_view_survey_lines(self, view=None):
         if view is None:
             view = self.depth_line_view
@@ -85,10 +87,10 @@ class SurveyDepthPane(TraitsDockPane):
         if name:
             name = name.name
         logger.info('current survey line now {}'.format(name))
-        
-    def _get_hdf5_file(self):
-        return self.survey.hdf5_file
-    
+
+    def _get_project_dir(self):
+        return self.survey.project_dir
+
     @on_trait_change('current_data_session')
     def _set_depth_line_view(self):
         name = self.current_data_session
@@ -96,7 +98,7 @@ class SurveyDepthPane(TraitsDockPane):
             self.depth_line_view = self._get_depth_line_view()
             name = self.current_data_session.survey_line.name
         logger.info('data session changed: {}'.format(name))
-        
+
     def _get_depth_line_view(self):
         data = self.current_data_session
         sanity_check = data.survey_line is self.current_survey_line
@@ -104,7 +106,7 @@ class SurveyDepthPane(TraitsDockPane):
             view = DepthLineView(model=DepthLine(),
                                  data_session=self.current_data_session,
                                  algorithms=self.algorithms,
-                                 hdf5_file=self.survey.hdf5_file
+                                 project_dir=self.survey.project_dir
                                  )
             view.selected_depth_line_name = 'New Line'
             view.model = view.create_new_line()
