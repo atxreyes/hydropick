@@ -36,8 +36,8 @@ _non_ambiguous_requirements = [
 
 _ambiguous_requirements = [
     ('pytables', 'tables', '>=2.4.0'),
-    ('scikits.image', 'skimage', ''),
-    ('scikit_learn', 'sklearn', '')
+    ('scikits.image', 'scikit-image', ''),
+    ('scikit_learn', 'scikit-learn', '')
     ]
 _resolved = resolve_ambiguous_requirements(_ambiguous_requirements)
 
