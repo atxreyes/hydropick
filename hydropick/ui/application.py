@@ -72,6 +72,8 @@ class Application(HasTraits):
                             const=logging.WARNING, help='quiet logging')
         parser.add_argument('-d', '--debug', action='store_const', dest='logging',
                             const=logging.DEBUG, help='debug logging')
+        parser.add_argument('--tide-gauge', help='autogenerate tide file from this USGS gauge',
+                            dest='tide_gauge_', metavar='TIDE_GAUGE')
         parser.add_argument('--export', help='survey points file to export to',
                             dest='export_', metavar='POINTS_FILE')
         args = parser.parse_args()
@@ -83,10 +85,16 @@ class Application(HasTraits):
         args = self.parse_arguments()
         handler = self.get_logging_handler()
         self.logger.addHandler(handler)
+
         if args.import_:
             from ..io.import_survey import import_survey
             survey = import_survey(args.import_, args.with_picks_)
             self.task.survey = survey
+        if (args.tide_gauge_ or args.export_) and not self.task.survey:
+            raise RuntimeError("When exporting or generating a tide file, you must provide a survey with --import")
+        if args.tide_gauge_:
+            from ..io.export_survey import generate_tide_file
+            generate_tide_file(args.tide_gauge_, self.task.survey)
         if args.export_:
             from ..io.export_survey import export_survey_points
             export_survey_points(self.task.survey, args.export_)
