@@ -162,7 +162,6 @@ class SurveyLine(HasTraits):
             self.core_depth_reference_str = None
             logger.error('Cannot find current surface line to set.')
 
-
     def _final_lake_depth_default(self):
         default = self.lake_depths.get(
             CURRENT_SURFACE_FROM_BIN_NAME, None)
@@ -230,23 +229,28 @@ class SurveyLine(HasTraits):
         self.gain = sdi_dict_raw['gain']
         # check consistent arrays
         self.array_sizes_ok()
-        filename = os.path.basename(sdi_dict_raw['filepath'])
-        sdi_surface = DepthLine(
-            name='current_surface_from_bin',
-            survey_line_name=self.name,
-            line_type='current surface',
-            source='sdi_file',
-            source_name=filename,
-            index_array=self.trace_num - 1,
-            depth_array=sdi_dict_raw['depth_r1'],
-            lock=True
-        )
-        survey_io.write_depth_line_to_hdf(project_dir, sdi_surface, self.name)
         # depth lines stored separately
         self.lake_depths = survey_io.read_pick_lines_from_hdf(
-                                     project_dir, self.name, 'current')
+            project_dir, self.name, 'current')
         self.preimpoundment_depths = survey_io.read_pick_lines_from_hdf(
-                                     project_dir, self.name, 'preimpoundment')
+            project_dir, self.name, 'preimpoundment')
+
+        if not CURRENT_SURFACE_FROM_BIN_NAME in self.lake_depths:
+            filename = os.path.basename(sdi_dict_raw['filepath'])
+            sdi_surface = DepthLine(
+                name='current_surface_from_bin',
+                survey_line_name=self.name,
+                line_type='current surface',
+                source='sdi_file',
+                source_name=filename,
+                index_array=self.trace_num - 1,
+                depth_array=sdi_dict_raw['depth_r1'],
+                lock=True
+            )
+            survey_io.write_depth_line_to_hdf(project_dir, sdi_surface, self.name)
+            self.lake_depths = survey_io.read_pick_lines_from_hdf(
+                project_dir, self.name, 'current')
+
         attrs_dict = survey_io.read_survey_line_attrs_from_hdf(project_dir, self.name)
         for key, value in attrs_dict.iteritems():
             if hasattr(self, key):
