@@ -245,6 +245,7 @@ class SurveyLine(HasTraits):
                 source_name=filename,
                 index_array=self.trace_num - 1,
                 depth_array=sdi_dict_raw['depth_r1'],
+                color=(255, 255, 255, 255),
                 lock=True
             )
             survey_io.write_depth_line_to_hdf(project_dir, sdi_surface, self.name)
