@@ -9,10 +9,39 @@ from . import survey_io
 
 def export_survey_points(survey, path):
     """Write out survey points to a csv for use in interpolation pipeline."""
-    survey_point_data = [
-        _extract_survey_points(survey_line)
-        for survey_line in survey.survey_lines
+    tide_file_path = _get_tide_file_path(survey)
+    tide_data = pd.read_csv(tide_file_path, index_col='datetime')
+    tide_data.index = pd.DatetimeIndex(tide_data.index)
+
+    #x, y, latitude, longitude, z, lake_elevation, current_surface_elevation,
+    #pre_impoundment_elevation, sediment_thickness, sdi_filename, datetime,
+    round_columns = [
+        # (name, decimals)
+        ('x', 8),
+        ('y', 8),
+        ('latitude', 8),
+        ('longitude', 8),
+        ('z', 2),
+        ('lake_elevation', 2),
+        ('current_surface_elevation', 2),
+        ('pre_impoundment_elevation', 2),
+        ('sediment_thickness', 2),
+        ('sdi_filename', None),
+        ('datetime', None),
     ]
+
+    with open(path, 'wb') as f:
+        first = True
+
+        for survey_line in survey.survey_lines:
+            df = _extract_survey_points(survey_line, tide_data)
+            for name, decimals in round_columns:
+                if decimals is not None:
+                    df[name] = df[name].round(decimals=decimals)
+
+            cols = [name for name, decimals in round_columns]
+            df.to_csv(f, cols=cols, header=first, index=False)
+            first = False
 
     return survey_point_data
 
@@ -64,10 +93,85 @@ def _df_for_code(data, code, start, end, daily_mean=False):
     return df
 
 
-def _extract_survey_points(survey_line):
+def _extract_survey_points(survey_line, tide_data):
     survey_line.load_data(survey_line.project_dir)
+    lake_depth = survey_line.lake_depths.get(survey_line.final_lake_depth)
+    preimpoundment_depth = survey_line.preimpoundment_depths.get(
+        survey_line.final_preimpoundment_depth)
+    if lake_depth is None:
+        raise LookupError(
+            "Survey line %s does not have a final lake depth set" % survey_line.name)
+    if preimpoundment_depth is None:
+        raise LookupError(
+            "Survey line %s does not have a final preimpoundment depth set" % survey_line.name)
+
+    sdi_dict_raw = survey_io.read_sdi_data_unseparated_from_hdf(
+        survey_line.project_dir,
+        survey_line.name)
+
+    x = sdi_dict_raw['interpolated_easting']
+    y = sdi_dict_raw['interpolated_northing']
+    latitude, longitude = survey_line.lat_long.T
+
+    datetime = _parse_datetimes(sdi_dict_raw)
+
+    lake_elevation = _interpolate_water_surface(tide_data, datetime)
+
+    current_surface_z = _meters_to_feet(lake_depth.depth_array)
+    preimpoundment_z = _meters_to_feet(preimpoundment_depth.depth_array)
+
+    df = pd.DataFrame(dict(
+        x=x,
+        y=y,
+        latitude=latitude,
+        longitude=longitude,
+        lake_elevation=lake_elevation,
+        current_surface_z=current_surface_z,
+        preimpoundment_z=preimpoundment_z,
+        sdi_filename=survey_line.name,
+        datetime=datetime,
+    ),
+    index=datetime)
+
+    df['current_surface_elevation'] = df['lake_elevation'] - df['current_surface_z']
+    df['preimpoundment_elevation'] = df['lake_elevation'] - df['preimpoundment_z']
+    df['sediment_thickness'] = df['current_surface_elevation'] - df['preimpoundment_elevation']
+
+    df = df.rename(columns={
+        'current_surface_z': 'z',
+        'preimpoundment_elevation': 'pre_impoundment_elevation',
+    })
+
+    # apply mask
+    if len(survey_line.mask):
+        df = df[~survey_line.mask.astype(bool)]
+
     survey_line.unload_data()
+    return df
 
 
 def _get_tide_file_path(survey):
     return os.path.join(survey.project_dir, 'tide_file.txt')
+
+
+def _interpolate_water_surface(water_surface, datetime):
+    wse = water_surface['water_surface_elevation']
+    nans = pd.Series(index=datetime)
+    return wse.combine_first(nans).interpolate(method='time')[datetime]
+
+
+def _meters_to_feet(arr):
+    return arr * 3.28083989501312
+
+
+def _parse_datetimes(sdi_dict_raw):
+    date = datetime.datetime.strptime(sdi_dict_raw['date'][:6], '%y%m%d')
+
+    # note: be wary of using timedelta64; it's more efficient but inconsisent
+    # and weirdly broken in some versions of numpy
+    datetimes = [
+        date + datetime.timedelta(hours=int(t[0]), minutes=int(t[1]), seconds=int(t[2]), microseconds=int(t[3]))
+        for t in zip(sdi_dict_raw['hour'], sdi_dict_raw['minute'], sdi_dict_raw['second'], sdi_dict_raw['microsecond'])
+    ]
+
+    return pd.DatetimeIndex(datetimes)
