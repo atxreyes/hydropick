@@ -82,9 +82,12 @@ def _df_for_code(data, code, start, end, daily_mean=False):
     if code in data:
         df = pd.DataFrame(data[code]['values']).set_index('datetime')
         df.index = pd.DatetimeIndex(df.index)
+
         if daily_mean:
             df.index = df.index + datetime.timedelta(hours=12)
+
         df.value = df.value.astype(float)
+
         df = df[start:end]
     else:
         df = pd.DataFrame()
@@ -93,9 +96,11 @@ def _df_for_code(data, code, start, end, daily_mean=False):
 
 def _extract_survey_points(survey_line, tide_data):
     survey_line.load_data(survey_line.project_dir)
+
     lake_depth = survey_line.lake_depths.get(survey_line.final_lake_depth)
     preimpoundment_depth = survey_line.preimpoundment_depths.get(
         survey_line.final_preimpoundment_depth)
+
     if lake_depth is None:
         raise LookupError(
             "Survey line %s does not have a final lake depth set" % survey_line.name)
