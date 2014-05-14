@@ -109,7 +109,8 @@ def _extract_survey_points(survey_line, tide_data):
 
     x = sdi_dict_raw['interpolated_easting']
     y = sdi_dict_raw['interpolated_northing']
-    latitude, longitude = survey_line.lat_long.T
+    latitude = sdi_dict_raw['interpolated_latitude']
+    longitude = sdi_dict_raw['interpolated_longitude']
 
     datetime = _parse_datetimes(sdi_dict_raw)
 
