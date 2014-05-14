@@ -13,21 +13,19 @@ def export_survey_points(survey, path):
     tide_data = pd.read_csv(tide_file_path, index_col='datetime')
     tide_data.index = pd.DatetimeIndex(tide_data.index)
 
-    #x, y, latitude, longitude, z, lake_elevation, current_surface_elevation,
-    #pre_impoundment_elevation, sediment_thickness, sdi_filename, datetime,
-    round_columns = [
-        # (name, decimals)
-        ('x', 8),
-        ('y', 8),
-        ('latitude', 8),
-        ('longitude', 8),
-        ('z', 2),
-        ('lake_elevation', 2),
-        ('current_surface_elevation', 2),
-        ('pre_impoundment_elevation', 2),
-        ('sediment_thickness', 2),
-        ('sdi_filename', None),
-        ('datetime', None),
+    column_info = [
+        # (name, decimals, string_fmt)
+        ('x', 8, '%13.8f'),
+        ('y', 8, '%13.8f'),
+        ('latitude', 8, '%13.8f'),
+        ('longitude', 8, '%13.8f'),
+        ('z', 2, '%5.2f'),
+        ('lake_elevation', 2, '%5.2f'),
+        ('current_surface_elevation', 2, '%5.2f'),
+        ('pre_impoundment_elevation', 2, '%5.2f'),
+        ('sediment_thickness', 2, '%5.2f'),
+        ('sdi_filename', None, None),
+        ('datetime', None, None),
     ]
 
     with open(path, 'wb') as f:
@@ -35,11 +33,13 @@ def export_survey_points(survey, path):
 
         for survey_line in survey.survey_lines:
             df = _extract_survey_points(survey_line, tide_data)
-            for name, decimals in round_columns:
+            for name, decimals, fmt in column_info:
                 if decimals is not None:
                     df[name] = df[name].round(decimals=decimals)
+                if fmt is not None:
+                    df[name] = df[name].apply(lambda f: fmt % f)
 
-            cols = [name for name, decimals in round_columns]
+            cols = [name for name, decimals, pad in column_info]
             df.to_csv(f, cols=cols, header=first, index=False)
             first = False
 
