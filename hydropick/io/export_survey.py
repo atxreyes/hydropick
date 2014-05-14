@@ -43,8 +43,6 @@ def export_survey_points(survey, path):
             df.to_csv(f, cols=cols, header=first, index=False)
             first = False
 
-    return survey_point_data
-
 
 def generate_tide_file(gauge_code, survey):
     """Generate tide file to use as a source when exporting survey points."""
