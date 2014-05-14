@@ -155,7 +155,7 @@ def _get_tide_file_path(survey):
 
 def _interpolate_water_surface(water_surface, datetime):
     wse = water_surface['water_surface_elevation']
-    nans = pd.Series(index=datetime)
+    nans = pd.Series(index=datetime.unique())
     return wse.combine_first(nans).interpolate(method='time')[datetime]
 
 
