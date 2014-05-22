@@ -32,6 +32,7 @@ _non_ambiguous_requirements = [
     "shapely>=1.2.17",
     "sdi",
     "scipy",
+    "ulmo>=0.7.0",
 ]
 
 _ambiguous_requirements = [
