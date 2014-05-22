@@ -20,11 +20,11 @@ class TestAlgorithms(unittest.TestCase):
         linename = '12030101'
         filename = os.path.join(self.test_dir, 'files', linename + '.bin')
         self.tempdir = tempfile.mkdtemp()
-        self.h5file = os.path.join(self.tempdir, 'test.h5')
-        survey_io.import_survey_line_from_file(filename, self.h5file, linename)
-        self.survey_line = survey_io.read_survey_line_from_hdf(self.h5file,
+        self.project_dir = os.path.join(self.tempdir, 'test_h5')
+        survey_io.import_survey_line_from_file(filename, self.project_dir, linename)
+        self.survey_line = survey_io.read_survey_line_from_hdf(self.project_dir,
                                                                linename)
-        self.survey_line.load_data(self.h5file)
+        self.survey_line.load_data(self.project_dir)
 
     def tearDown(self):
         shutil.rmtree(self.tempdir)

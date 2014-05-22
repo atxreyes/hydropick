@@ -106,7 +106,7 @@ def write_depth_line_to_hdf(project_dir, depth_line, survey_line_name):
         index_array=d.index_array,
         depth_array=d.depth_array,
         edited=d.edited,
-        color=str(d.color.toTuple()),   # so pytables can handle it
+        color=str(d.color.getRgb()),   # so pytables can handle it
         notes=d.notes,
         locked=d.locked,
     )
