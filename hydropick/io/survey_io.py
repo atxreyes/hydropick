@@ -129,6 +129,7 @@ def write_survey_line_to_hdf(project_dir, survey_line):
     attrs_dict = {
         'final_lake_depth': survey_line.final_lake_depth,
         'final_preimpoundment_depth': survey_line.final_preimpoundment_depth,
+        'status': survey_line.status,
         'status_string': survey_line.status_string
     }
 
