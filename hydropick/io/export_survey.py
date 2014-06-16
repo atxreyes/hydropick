@@ -32,6 +32,8 @@ def export_survey_points(survey, path):
         first = True
 
         for survey_line in survey.survey_lines:
+            if survey_line.status == 'bad':
+                continue
             df = _extract_survey_points(survey_line, tide_data)
             for name, decimals, fmt in column_info:
                 if decimals is not None:

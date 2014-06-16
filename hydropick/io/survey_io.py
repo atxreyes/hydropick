@@ -53,9 +53,10 @@ def read_shoreline_from_hdf(project_dir):
 
 def read_survey_line_from_hdf(project_dir, name):
     coords = hdf5.HDF5Backend(project_dir).read_survey_line_coords(name)
+    attrs_dict = read_survey_line_attrs_from_hdf(project_dir, name)
     line = SurveyLine(name=name,
                       data_file_path=project_dir,
-                      navigation_line=LineString(coords))
+                      navigation_line=LineString(coords), **attrs_dict)
     return line
 
 
@@ -129,6 +130,7 @@ def write_survey_line_to_hdf(project_dir, survey_line):
     attrs_dict = {
         'final_lake_depth': survey_line.final_lake_depth,
         'final_preimpoundment_depth': survey_line.final_preimpoundment_depth,
+        'status': survey_line.status,
         'status_string': survey_line.status_string
     }
 
