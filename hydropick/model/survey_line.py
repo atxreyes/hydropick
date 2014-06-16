@@ -252,11 +252,6 @@ class SurveyLine(HasTraits):
             self.lake_depths = survey_io.read_pick_lines_from_hdf(
                 project_dir, self.name, 'current')
 
-        attrs_dict = survey_io.read_survey_line_attrs_from_hdf(project_dir, self.name)
-        for key, value in attrs_dict.iteritems():
-            if hasattr(self, key):
-                setattr(self, key, value)
-
         self.mask = survey_io.read_survey_line_mask_from_hdf(project_dir, self.name)
 
     def unload_data(self):
