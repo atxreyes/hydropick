@@ -54,7 +54,6 @@ def generate_tide_file(gauge_code, survey):
     daily_mean_code = '00062:00003'
 
     parameter_codes = [instantaneous_code, midnight_code, daily_mean_code]
-    data = ulmo.usgs.nwis.hdf5.get_site_data(gauge_code, parameter_code=parameter_codes)
 
     line_names = sorted([survey_line.name for survey_line in survey.survey_lines])
     start = str(_date_from_line_name(line_names[0]))
@@ -62,9 +61,7 @@ def generate_tide_file(gauge_code, survey):
     # go forward two days so we have something to interpolate to
     end = str(_date_from_line_name(line_names[-1]) + datetime.timedelta(days=2))
 
-    if not data:
-        ulmo.usgs.nwis.hdf5.update_site_data(gauge_code, start=start, end=end)
-        data = ulmo.usgs.nwis.hdf5.get_site_data(gauge_code)
+    data = ulmo.usgs.nwis.get_site_data(gauge_code, start=start, end=end)
 
     df = pd.DataFrame()
 
@@ -137,7 +134,7 @@ def _extract_survey_points(survey_line, tide_data):
         sdi_filename=survey_line.name,
         datetime=datetime,
     ),
-    index=datetime)
+        index=datetime)
 
     df['current_surface_elevation'] = df['lake_elevation'] - df['current_surface_z']
     df['preimpoundment_elevation'] = df['lake_elevation'] - df['preimpoundment_z']
