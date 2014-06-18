@@ -7,13 +7,13 @@ import ulmo
 from . import survey_io
 
 
-def export_survey_points(survey, path):
+def export_survey_points(survey, path, with_pre=True):
     """Write out survey points to a csv for use in interpolation pipeline."""
     tide_file_path = _get_tide_file_path(survey)
     tide_data = pd.read_csv(tide_file_path, index_col='datetime')
     tide_data.index = pd.DatetimeIndex(tide_data.index)
 
-    column_info = [
+    start_columns = [
         # (name, decimals, string_fmt)
         ('x', 8, '%13.8f'),
         ('y', 8, '%13.8f'),
@@ -22,12 +22,23 @@ def export_survey_points(survey, path):
         ('z', 2, '%5.2f'),
         ('lake_elevation', 2, '%5.2f'),
         ('current_surface_elevation', 2, '%5.2f'),
-        ('pre_impoundment_elevation', 2, '%5.2f'),
-        ('sediment_thickness', 2, '%5.2f'),
+    ]
+
+    if with_pre:
+        preimpoundment_columns = [
+            ('pre_impoundment_elevation', 2, '%5.2f'),
+            ('sediment_thickness', 2, '%5.2f'),
+        ]
+    else:
+        preimpoundment_columns = []
+
+    end_columns = [
         ('sdi_filename', None, None),
         ('date', None, None),
         ('time', None, None),
     ]
+
+    column_info = start_columns + preimpoundment_columns + end_columns
 
     with open(path, 'wb') as f:
         first = True
@@ -35,7 +46,7 @@ def export_survey_points(survey, path):
         for survey_line in survey.survey_lines:
             if survey_line.status == 'bad':
                 continue
-            df = _extract_survey_points(survey_line, tide_data)
+            df = _extract_survey_points(survey_line, tide_data, with_pre=with_pre)
             for name, decimals, fmt in column_info:
                 if decimals is not None:
                     df[name] = df[name].round(decimals=decimals)
@@ -98,7 +109,7 @@ def _df_for_code(data, code, start, end, daily_mean=False):
     return df[start:end]
 
 
-def _extract_survey_points(survey_line, tide_data):
+def _extract_survey_points(survey_line, tide_data, with_pre):
     survey_line.load_data(survey_line.project_dir)
 
     lake_depth = survey_line.lake_depths.get(survey_line.final_lake_depth)
@@ -108,7 +119,7 @@ def _extract_survey_points(survey_line, tide_data):
     if lake_depth is None:
         raise LookupError(
             "Survey line %s does not have a final lake depth set" % survey_line.name)
-    if preimpoundment_depth is None:
+    if with_pre and preimpoundment_depth is None:
         raise LookupError(
             "Survey line %s does not have a final preimpoundment depth set" % survey_line.name)
 
@@ -126,29 +137,32 @@ def _extract_survey_points(survey_line, tide_data):
     lake_elevation = _interpolate_water_surface(tide_data, datetime)
 
     current_surface_z = _meters_to_feet(lake_depth.depth_array)
-    preimpoundment_z = _meters_to_feet(preimpoundment_depth.depth_array)
 
-    df = pd.DataFrame(dict(
+    data_dict = dict(
         x=x,
         y=y,
         latitude=latitude,
         longitude=longitude,
         lake_elevation=lake_elevation,
         current_surface_z=current_surface_z,
-        preimpoundment_z=preimpoundment_z,
         sdi_filename=survey_line.name,
         date=datetime.date,
-        time=datetime.time
-    ),
-        index=datetime)
+        time=datetime.time,
+    )
+
+    if with_pre:
+        data_dict['pre_impoundment_z'] = _meters_to_feet(preimpoundment_depth.depth_array)
+
+    df = pd.DataFrame(data_dict, index=datetime)
 
     df['current_surface_elevation'] = df['lake_elevation'] - df['current_surface_z']
-    df['preimpoundment_elevation'] = df['lake_elevation'] - df['preimpoundment_z']
-    df['sediment_thickness'] = df['current_surface_elevation'] - df['preimpoundment_elevation']
+
+    if with_pre:
+        df['pre_impoundment_elevation'] = df['lake_elevation'] - df['pre_impoundment_z']
+        df['sediment_thickness'] = df['current_surface_elevation'] - df['pre_impoundment_elevation']
 
     df = df.rename(columns={
         'current_surface_z': 'z',
-        'preimpoundment_elevation': 'pre_impoundment_elevation',
     })
 
     # apply mask
