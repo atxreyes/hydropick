@@ -1,15 +1,16 @@
 hydropick
 =========
 
-Semi-automated Sediment picking GUI and algorithms for SDI multifrequency depth sounders 
+Semi-automated Sediment picking GUI and algorithms for SDI multifrequency depth sounders
 
 
 command line
 ------------
 
-```    
+```
 usage: hydropick [-h] [--import DIR] [--with-picks] [-v] [-q] [-d]
-                 [--tide-gauge TIDE_GAUGE] [--export POINTS_FILE]
+                 [--tide-gauge TIDE_GAUGE] [--export SURVEY_POINTS_FILE]
+                 [--export-no-pre SURVEY_POINTS_FILE_WITHOUT_PRE]
 
 Hydropick: a hydrological survey editor
 
@@ -22,8 +23,11 @@ optional arguments:
   -d, --debug           debug logging
   --tide-gauge TIDE_GAUGE
                         autogenerate tide file from this USGS gauge
-  --export POINTS_FILE  survey points file to export to
-
+  --export SURVEY_POINTS_FILE
+                        export survey points to this file
+  --export-no-pre SURVEY_POINTS_FILE_WITHOUT_PRE
+                        export survey points to this file, no preimpoundment
+                        or sediment thickness will be included
 ```
 
 
@@ -37,12 +41,17 @@ Application data is saved in a project directory. If one doesn't exist, it is au
 Before exporting survey points, you'll need to create a tide file. To generate a tide file from a USGS NWIS gauge:
 
     hydropick --import CorpusChristi/2012/SurveyData/ --tide-gauge 08164525
-    
+
 This will create a tide file named: `CorpusChristi/2012/SurveyData/CorpusChristi_2012-project/tide_file.txt` that can be edited as needed.
 
 Then, to export:
 
     hydropick --import CorpusChristi/2012/SurveyData/  --export output_file.txt
-    
-Will create a file named `output_file.txt` that contains the exported survey points.
-    
+
+This will create a file named `output_file.txt` that contains the exported survey points.
+
+
+Use the `--export-no-pre` argument to export does the same, but without
+preimpoundment or sediment thickness:
+
+    hydropick --import CorpusChristi/2012/SurveyData/  --export-no-pre output_file.txt

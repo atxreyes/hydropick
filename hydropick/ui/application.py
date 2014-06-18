@@ -14,6 +14,7 @@ import logging
 from traits.etsconfig.etsconfig import ETSConfig
 from traits.api import HasTraits, Directory, Instance, Supports
 
+
 class Application(HasTraits):
     """ The main Hydropick application object """
 
@@ -58,8 +59,8 @@ class Application(HasTraits):
 
     def parse_arguments(self):
         import argparse
-        parser = argparse.ArgumentParser(description
-                                         ="Hydropick: a hydrological survey editor")
+        parser = argparse.ArgumentParser(
+            description="Hydropick: a hydrological survey editor")
         parser.add_argument('--import', help='survey data to import',
                             dest='import_', metavar='DIR')
         parser.add_argument('--with-picks',
@@ -74,8 +75,10 @@ class Application(HasTraits):
                             const=logging.DEBUG, help='debug logging')
         parser.add_argument('--tide-gauge', help='autogenerate tide file from this USGS gauge',
                             dest='tide_gauge_', metavar='TIDE_GAUGE')
-        parser.add_argument('--export', help='survey points file to export to',
-                            dest='export_', metavar='POINTS_FILE')
+        parser.add_argument('--export', help='export survey points to this file',
+                            dest='export_', metavar='SURVEY_POINTS_FILE')
+        parser.add_argument('--export-no-pre', help='export survey points to this file, no preimpoundment or sediment thickness will be included',
+                            dest='export_no_pre_', metavar='SURVEY_POINTS_FILE_WITHOUT_PRE')
         args = parser.parse_args()
         return args
 
@@ -97,7 +100,10 @@ class Application(HasTraits):
             generate_tide_file(args.tide_gauge_, self.task.survey)
         if args.export_:
             from ..io.export_survey import export_survey_points
-            export_survey_points(self.task.survey, args.export_)
+            export_survey_points(self.task.survey, args.export_, with_pre=True)
+        if args.export_no_pre_:
+            from ..io.export_survey import export_survey_points
+            export_survey_points(self.task.survey, args.export_no_pre_, with_pre=False)
         if args.logging is not None:
             self.logger.setLevel(args.logging)
         else:
