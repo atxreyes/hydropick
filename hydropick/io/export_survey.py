@@ -25,7 +25,8 @@ def export_survey_points(survey, path):
         ('pre_impoundment_elevation', 2, '%5.2f'),
         ('sediment_thickness', 2, '%5.2f'),
         ('sdi_filename', None, None),
-        ('datetime', None, None),
+        ('date', None, None),
+        ('time', None, None),
     ]
 
     with open(path, 'wb') as f:
@@ -132,7 +133,8 @@ def _extract_survey_points(survey_line, tide_data):
         current_surface_z=current_surface_z,
         preimpoundment_z=preimpoundment_z,
         sdi_filename=survey_line.name,
-        datetime=datetime,
+        date=datetime.date,
+        time=datetime.time
     ),
         index=datetime)
 
