@@ -79,19 +79,23 @@ def _date_from_line_name(line_name):
 
 
 def _df_for_code(data, code, start, end, daily_mean=False):
-    if code in data:
-        df = pd.DataFrame(data[code]['values']).set_index('datetime')
-        df.index = pd.DatetimeIndex(df.index)
+    if code not in data:
+        return pd.DataFrame()
 
-        if daily_mean:
-            df.index = df.index + datetime.timedelta(hours=12)
+    df = pd.DataFrame(data[code]['values'])
 
-        df.value = df.value.astype(float)
+    if df.empty:
+        return pd.DataFrame()
 
-        df = df[start:end]
-    else:
-        df = pd.DataFrame()
-    return df
+    df = df.set_index('datetime')
+    df.index = pd.DatetimeIndex(df.index)
+
+    if daily_mean:
+        df.index = df.index + datetime.timedelta(hours=12)
+
+    df.value = df.value.astype(float)
+
+    return df[start:end]
 
 
 def _extract_survey_points(survey_line, tide_data):
